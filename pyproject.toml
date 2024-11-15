@@ -1,0 +1,17 @@
+[project]
+name = "rayx"
+version = "0.2.0"
+description = "Python bindings for RAYX"
+readme = "README.md"
+license = { file = "LICENSE" }
+
+dependencies = ["numpy >= 2.0.0", "pandas >= 2.0.0", "recordclass >= 0.22.0"]
+requires-python = ">=3.7"
+authors = [{ name = "RAYX team", email = "rayx-support@helmholtz-berlin.de" }]
+maintainers = [
+    { name = "RAYX team", email = "rayx-support@helmholtz-berlin.de" },
+]
+
+[build-system]
+requires = ["setuptools", "wheel", "Cython >= 3.0.10", "cmake >= 3.25.2"]
+build-backend = 'setuptools.build_meta'
