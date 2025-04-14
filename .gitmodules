@@ -1,6 +1,3 @@
-[submodule "extern/rayx"]
-	path = rayx
-	url = https://github.com/hz-b/rayx.git
 [submodule "extern/pybind11"]
 	path = extern/pybind11
 	url = ../../pybind/pybind11
