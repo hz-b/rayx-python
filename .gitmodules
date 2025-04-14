@@ -2,3 +2,6 @@
 	path = extern/pybind11
 	url = ../../pybind/pybind11
 	branch = stable
+[submodule "extern/rayx"]
+	path = extern/rayx
+	url = ../../hz-b/rayx
