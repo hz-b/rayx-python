@@ -1,0 +1,16 @@
+project(rayxpy LANGUAGES CXX CUDA)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_STANDARD 20)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+set(PYBIND11_FINDPYTHON ON)
+
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
+
+pybind11_add_module(rayx main.cpp)
+target_link_libraries(rayx PRIVATE rayx-core)
+target_include_directories(rayx PRIVATE $<TARGET_PROPERTY:rayx-core,INTERFACE_INCLUDE_DIRECTORIES>)
+
+install(TARGETS rayx DESTINATION .)

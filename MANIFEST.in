@@ -1,2 +1,0 @@
-include *.pyx
-graft rayx

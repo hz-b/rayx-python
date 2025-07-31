@@ -1,2 +1,7 @@
 build
 .vscode
+dist
+test.py
+cuda-*
+wheelhouse
+test.ipynb
