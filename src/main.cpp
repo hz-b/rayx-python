@@ -484,8 +484,8 @@ PYBIND11_MODULE(rayx, m) {
         .def("trace", [](RAYX::Beamline& bl) {
             RAYX::DeviceConfig deviceConfig = RAYX::DeviceConfig().enableBestDevice();
             RAYX::Tracer tracer = RAYX::Tracer(deviceConfig);
-            RAYX::RaySoA s_of_a = tracer.trace(bl, RAYX::Sequential::No, 10000, 10, -1);
-            // RAYX::BundleHistory history = RAYX::raySoAToBundleHistory(s_of_a);
+            std::vector<bool> recordMask(bl.numElements(), true);
+            RAYX::RaySoA s_of_a = tracer.trace(bl, RAYX::Sequential::No, 10000, 10, recordMask);
             return Rays(std::move(s_of_a));
         });
 
