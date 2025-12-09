@@ -1,57 +1,274 @@
+#include <Beamline/StringConversion.h>
 #include <Core.h>
 #include <Rml/Importer.h>
 #include <Rml/Locate.h>
 #include <Tracer/Tracer.h>
+#include <Variant.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <concepts>
 #include <filesystem>
+
+#include "reflection.hpp"
 
 using namespace pybind11::literals;
 
-std::complex<double> toStdComplex(const RAYX::complex::Complex& c) { return std::complex<double>(c.real(), c.imag()); }
+std::complex<double> toStdComplex(const rayx::complex::Complex& c) { return std::complex<double>(c.real(), c.imag()); }
 
 std::filesystem::path getModulePath() {
     pybind11::gil_scoped_acquire acquire;
     pybind11::object rayx = pybind11::module::import("rayxdata");
-    return std::filesystem::path(rayx.attr("__file__").cast<std::string>()).parent_path();
+    return std::filesystem::path(rayx.attr("__file__").cast<std::string>()).parent_path().parent_path();
 }
 
-struct Pos {
-    glm::dvec4 position;
-    std::function<void(glm::dvec4)> setter;
+namespace reflect {
 
-    Pos(glm::dvec4 data, std::function<void(glm::dvec4)> setter) : position(data), setter(setter) {}
-
-    void setX(double x) {
-        position.x = x;
-        setter(position);
-    }
-
-    double getX() { return position.x; }
-
-    void setY(double y) {
-        position.y = y;
-        setter(position);
-    }
-
-    double getY() { return position.y; }
-
-    void setZ(double z) {
-        position.z = z;
-        setter(position);
-    }
-
-    double getZ() { return position.z; }
-
-    void setW(double w) {
-        position.w = w;
-        setter(position);
-    }
-
-    double getW() { return position.w; }
+template <>
+struct info<glm::dvec3> {
+    static constexpr const char* type_name = "dvec3";
+    static constexpr auto fields = std::make_tuple(field_info{&glm::dvec3::x, "x"}, field_info{&glm::dvec3::y, "y"}, field_info{&glm::dvec3::z, "z"});
 };
+
+template <>
+struct info<glm::dvec4> {
+    static constexpr const char* type_name = "dvec4";
+    static constexpr auto fields = std::make_tuple(field_info{&glm::dvec4::x, "x"}, field_info{&glm::dvec4::y, "y"}, field_info{&glm::dvec4::z, "z"},
+                                                   field_info{&glm::dvec4::w, "w"});
+};
+
+template <>
+struct info<rayx::detail::SurfaceTypes::Plane> {
+    static constexpr const char* type_name = "Plane";
+    static constexpr auto fields = std::make_tuple();
+};
+
+template <>
+struct info<rayx::detail::SurfaceTypes::Quadric> {
+    static constexpr const char* type_name = "Quadric";
+    static constexpr auto fields = std::make_tuple(
+        field_info{&rayx::detail::SurfaceTypes::Quadric::m_icurv, "icurv"}, field_info{&rayx::detail::SurfaceTypes::Quadric::m_a11, "a11"},
+        field_info{&rayx::detail::SurfaceTypes::Quadric::m_a12, "a12"}, field_info{&rayx::detail::SurfaceTypes::Quadric::m_a13, "a13"},
+        field_info{&rayx::detail::SurfaceTypes::Quadric::m_a14, "a14"}, field_info{&rayx::detail::SurfaceTypes::Quadric::m_a22, "a22"},
+        field_info{&rayx::detail::SurfaceTypes::Quadric::m_a23, "a23"}, field_info{&rayx::detail::SurfaceTypes::Quadric::m_a24, "a24"},
+        field_info{&rayx::detail::SurfaceTypes::Quadric::m_a33, "a33"}, field_info{&rayx::detail::SurfaceTypes::Quadric::m_a34, "a34"},
+        field_info{&rayx::detail::SurfaceTypes::Quadric::m_a44, "a44"});
+};
+
+template <>
+struct info<rayx::detail::SurfaceTypes::Toroid> {
+    static constexpr const char* type_name = "Toroid";
+    static constexpr auto fields = std::make_tuple(field_info{&rayx::detail::SurfaceTypes::Toroid::m_longRadius, "longRadius"},
+                                                   field_info{&rayx::detail::SurfaceTypes::Toroid::m_shortRadius, "shortRadius"},
+                                                   field_info{&rayx::detail::SurfaceTypes::Toroid::m_toroidType, "toroidType"});
+};
+
+template <>
+struct info<rayx::detail::SurfaceTypes::Cubic> {
+    static constexpr const char* type_name = "Cubic";
+    static constexpr auto fields =
+        std::make_tuple(field_info{&rayx::detail::SurfaceTypes::Cubic::m_a11, "a11"}, field_info{&rayx::detail::SurfaceTypes::Cubic::m_a12, "a12"},
+                        field_info{&rayx::detail::SurfaceTypes::Cubic::m_a13, "a13"}, field_info{&rayx::detail::SurfaceTypes::Cubic::m_a14, "a14"},
+                        field_info{&rayx::detail::SurfaceTypes::Cubic::m_a22, "a22"}, field_info{&rayx::detail::SurfaceTypes::Cubic::m_a23, "a23"},
+                        field_info{&rayx::detail::SurfaceTypes::Cubic::m_a24, "a24"}, field_info{&rayx::detail::SurfaceTypes::Cubic::m_a33, "a33"},
+                        field_info{&rayx::detail::SurfaceTypes::Cubic::m_a34, "a34"}, field_info{&rayx::detail::SurfaceTypes::Cubic::m_a44, "a44"},
+                        field_info{&rayx::detail::SurfaceTypes::Cubic::m_b12, "b12"}, field_info{&rayx::detail::SurfaceTypes::Cubic::m_b13, "b13"},
+                        field_info{&rayx::detail::SurfaceTypes::Cubic::m_b21, "b21"}, field_info{&rayx::detail::SurfaceTypes::Cubic::m_b23, "b23"},
+                        field_info{&rayx::detail::SurfaceTypes::Cubic::m_b31, "b31"}, field_info{&rayx::detail::SurfaceTypes::Cubic::m_b32, "b32"},
+                        field_info{&rayx::detail::SurfaceTypes::Cubic::m_psi, "psi"});
+};
+
+template <>
+struct info<rayx::detail::CutoutTypes::Unlimited> {
+    static constexpr const char* type_name = "Unlimited";
+    static constexpr auto fields = std::make_tuple();
+};
+
+template <>
+struct info<rayx::detail::CutoutTypes::Rect> {
+    static constexpr const char* type_name = "Rect";
+    static constexpr auto fields = std::make_tuple(field_info{&rayx::detail::CutoutTypes::Rect::m_width, "width"},
+                                                   field_info{&rayx::detail::CutoutTypes::Rect::m_length, "length"});
+};
+
+template <>
+struct info<rayx::detail::CutoutTypes::Elliptical> {
+    static constexpr const char* type_name = "Elliptical";
+    static constexpr auto fields = std::make_tuple(field_info{&rayx::detail::CutoutTypes::Elliptical::m_diameter_x, "diameter_x"},
+                                                   field_info{&rayx::detail::CutoutTypes::Elliptical::m_diameter_z, "diameter_z"});
+};
+
+template <>
+struct info<rayx::detail::CutoutTypes::Trapezoid> {
+    static constexpr const char* type_name = "Trapezoid";
+    static constexpr auto fields = std::make_tuple(field_info{&rayx::detail::CutoutTypes::Trapezoid::m_widthA, "widthA"},
+                                                   field_info{&rayx::detail::CutoutTypes::Trapezoid::m_widthB, "widthB"},
+                                                   field_info{&rayx::detail::CutoutTypes::Trapezoid::m_length, "length"});
+};
+
+template <>
+struct info<rayx::SlopeError> {
+    static constexpr const char* type_name = "SlopeError";
+    static constexpr auto fields = std::make_tuple(field_info{&rayx::SlopeError::m_sag, "sag"}, field_info{&rayx::SlopeError::m_mer, "mer"},
+                                                   field_info{&rayx::SlopeError::m_thermalDistortionAmp, "thermalDistortionAmp"},
+                                                   field_info{&rayx::SlopeError::m_thermalDistortionSigmaX, "thermalDistortionSigmaX"},
+                                                   field_info{&rayx::SlopeError::m_thermalDistortionSigmaZ, "thermalDistortionSigmaZ"},
+                                                   field_info{&rayx::SlopeError::m_cylindricalBowingAmp, "cylindricalBowingAmp"},
+                                                   field_info{&rayx::SlopeError::m_cylindricalBowingRadius, "cylindricalBowingRadius"});
+};
+
+template <>
+struct info<rayx::Rad> {
+    static constexpr const char* type_name = "Rad";
+    static constexpr auto fields = std::make_tuple(field_info{&rayx::Rad::rad, "rad"});
+};
+
+template <>
+struct info<rayx::Surface> {
+    static constexpr const char* type_name = "Surface";
+};
+
+template <>
+struct info<rayx::Cutout> {
+    static constexpr const char* type_name = "Cutout";
+};
+
+static_assert(Variant<rayx::Surface>);
+static_assert(Variant<rayx::Variant<rayx::detail::SurfaceTypes, rayx::detail::SurfaceTypes::Plane, rayx::detail::SurfaceTypes::Quadric,
+                                    rayx::detail::SurfaceTypes::Toroid, rayx::detail::SurfaceTypes::Cubic>>);
+static_assert(Variant<rayx::Cutout>);
+
+template <>
+struct info<rayx::DesignElement> {
+    static constexpr const char* type_name = "DesignElement";
+    static constexpr auto fields = std::make_tuple(
+        prop_info{&rayx::DesignElement::getName, &rayx::DesignElement::setName, "name"},
+        prop_info{&rayx::DesignElement::getType, &rayx::DesignElement::setType, "type"},
+        prop_info{&rayx::DesignElement::getPosition, &rayx::DesignElement::setPosition, "position"},
+        prop_info{&rayx::DesignElement::getOrientation, &rayx::DesignElement::setOrientation, "orientation"},
+        prop_info{&rayx::DesignElement::getSlopeError, &rayx::DesignElement::setSlopeError, "slopeError"},
+        prop_info{&rayx::DesignElement::getAzimuthalAngle, &rayx::DesignElement::setAzimuthalAngle, "azimuthalAngle"},
+        prop_info{&rayx::DesignElement::getMaterial, &rayx::DesignElement::setMaterial, "material"},
+        prop_info{&rayx::DesignElement::getCutout, &rayx::DesignElement::setCutout, "cutout"},
+        // prop_info{&rayx::DesignElement::getVLSParameters, &rayx::DesignElement::setVLSParameters, "vlsParameters"},
+        prop_info{&rayx::DesignElement::getExpertsOptics, &rayx::DesignElement::setExpertsOptics, "expertsOptics"},
+        prop_info{&rayx::DesignElement::getExpertsCubic, &rayx::DesignElement::setExpertsCubic, "expertsCubic"},
+        prop_info{&rayx::DesignElement::getDistancePreceding, &rayx::DesignElement::setDistancePreceding, "distancePreceding"},
+        prop_info{&rayx::DesignElement::getTotalHeight, &rayx::DesignElement::setTotalHeight, "totalHeight"},
+        prop_info{&rayx::DesignElement::getOpeningShape, &rayx::DesignElement::setOpeningShape, "openingShape"},
+        prop_info{&rayx::DesignElement::getOpeningWidth, &rayx::DesignElement::setOpeningWidth, "openingWidth"},
+        prop_info{&rayx::DesignElement::getOpeningHeight, &rayx::DesignElement::setOpeningHeight, "openingHeight"},
+        prop_info{&rayx::DesignElement::getCentralBeamstop, &rayx::DesignElement::setCentralBeamstop, "centralBeamstop"},
+        prop_info{&rayx::DesignElement::getStopWidth, &rayx::DesignElement::setStopWidth, "stopWidth"},
+        prop_info{&rayx::DesignElement::getStopHeight, &rayx::DesignElement::setStopHeight, "stopHeight"},
+        prop_info{&rayx::DesignElement::getTotalWidth, &rayx::DesignElement::setTotalWidth, "totalWidth"},
+        prop_info{&rayx::DesignElement::getProfileKind, &rayx::DesignElement::setProfileKind, "profileKind"},
+        prop_info{&rayx::DesignElement::getProfileFile, &rayx::DesignElement::setProfileFile, "profileFile"},
+        prop_info{&rayx::DesignElement::getTotalLength, &rayx::DesignElement::setTotalLength, "totalLength"},
+        prop_info{&rayx::DesignElement::getGrazingIncAngle, &rayx::DesignElement::setGrazingIncAngle, "grazingIncAngle"},
+        prop_info{&rayx::DesignElement::getDeviationAngle, &rayx::DesignElement::setDeviationAngle, "deviationAngle"},
+        prop_info{&rayx::DesignElement::getEntranceArmLength, &rayx::DesignElement::setEntranceArmLength, "entranceArmLength"},
+        prop_info{&rayx::DesignElement::getExitArmLength, &rayx::DesignElement::setExitArmLength, "exitArmLength"},
+        prop_info{&rayx::DesignElement::getRadiusDirection, &rayx::DesignElement::setRadiusDirection, "radiusDirection"},
+        prop_info{&rayx::DesignElement::getRadius, &rayx::DesignElement::setRadius, "radius"},
+        prop_info{&rayx::DesignElement::getDesignGrazingIncAngle, &rayx::DesignElement::setDesignGrazingIncAngle, "designGrazingIncAngle"},
+        prop_info{&rayx::DesignElement::getLongHalfAxisA, &rayx::DesignElement::setLongHalfAxisA, "longHalfAxisA"},
+        prop_info{&rayx::DesignElement::getShortHalfAxisB, &rayx::DesignElement::setShortHalfAxisB, "shortHalfAxisB"},
+        prop_info{&rayx::DesignElement::getParameterA11, &rayx::DesignElement::setParameterA11, "parameterA11"},
+        prop_info{&rayx::DesignElement::getFigureRotation, &rayx::DesignElement::setFigureRotation, "figureRotation"},
+        prop_info{&rayx::DesignElement::getArmLength, &rayx::DesignElement::setArmLength, "armLength"},
+        prop_info{&rayx::DesignElement::getParameterP, &rayx::DesignElement::setParameterP, "parameterP"},
+        prop_info{&rayx::DesignElement::getParameterPType, &rayx::DesignElement::setParameterPType, "parameterPType"},
+        prop_info{&rayx::DesignElement::getLineDensity, &rayx::DesignElement::setLineDensity, "lineDensity"},
+        prop_info{&rayx::DesignElement::getShortRadius, &rayx::DesignElement::setShortRadius, "shortRadius"},
+        prop_info{&rayx::DesignElement::getLongRadius, &rayx::DesignElement::setLongRadius, "longRadius"},
+        prop_info{&rayx::DesignElement::getFresnelZOffset, &rayx::DesignElement::setFresnelZOffset, "fresnelZOffset"},
+        prop_info{&rayx::DesignElement::getDesignAlphaAngle, &rayx::DesignElement::setDesignAlphaAngle, "designAlphaAngle"},
+        prop_info{&rayx::DesignElement::getDesignBetaAngle, &rayx::DesignElement::setDesignBetaAngle, "designBetaAngle"},
+        prop_info{&rayx::DesignElement::getDesignOrderOfDiffraction, &rayx::DesignElement::setDesignOrderOfDiffraction, "designOrderOfDiffraction"},
+        prop_info{&rayx::DesignElement::getDesignEnergy, &rayx::DesignElement::setDesignEnergy, "designEnergy"},
+        prop_info{&rayx::DesignElement::getDesignSagittalEntranceArmLength, &rayx::DesignElement::setDesignSagittalEntranceArmLength,
+                  "designSagittalEntranceArmLength"},
+        prop_info{&rayx::DesignElement::getDesignSagittalExitArmLength, &rayx::DesignElement::setDesignSagittalExitArmLength,
+                  "designSagittalExitArmLength"},
+        prop_info{&rayx::DesignElement::getDesignMeridionalEntranceArmLength, &rayx::DesignElement::setDesignMeridionalEntranceArmLength,
+                  "designMeridionalEntranceArmLength"},
+        prop_info{&rayx::DesignElement::getDesignMeridionalExitArmLength, &rayx::DesignElement::setDesignMeridionalExitArmLength,
+                  "designMeridionalExitArmLength"},
+        prop_info{&rayx::DesignElement::getOrderOfDiffraction, &rayx::DesignElement::setOrderOfDiffraction, "orderOfDiffraction"},
+        prop_info{&rayx::DesignElement::getAdditionalOrder, &rayx::DesignElement::setAdditionalOrder, "additionalOrder"},
+        prop_info{&rayx::DesignElement::getImageType, &rayx::DesignElement::setImageType, "imageType"},
+        prop_info{&rayx::DesignElement::getCurvatureType, &rayx::DesignElement::setCurvatureType, "curvatureType"},
+        prop_info{&rayx::DesignElement::getBehaviourType, &rayx::DesignElement::setBehaviourType, "behaviourType"},
+        prop_info{&rayx::DesignElement::getCrystalType, &rayx::DesignElement::setCrystalType, "crystalType"},
+        // prop_info{&rayx::DesignElement::getCrystalMaterial, &rayx::DesignElement::setCrystalMaterial, "crystalMaterial"},
+        prop_info{&rayx::DesignElement::getOffsetAngle, &rayx::DesignElement::setOffsetAngle, "offsetAngle"},
+        prop_info{&rayx::DesignElement::getStructureFactorReF0, &rayx::DesignElement::setStructureFactorReF0, "structureFactorReF0"},
+        prop_info{&rayx::DesignElement::getStructureFactorImF0, &rayx::DesignElement::setStructureFactorImF0, "structureFactorImF0"},
+        prop_info{&rayx::DesignElement::getStructureFactorReFH, &rayx::DesignElement::setStructureFactorReFH, "structureFactorReFH"},
+        prop_info{&rayx::DesignElement::getStructureFactorImFH, &rayx::DesignElement::setStructureFactorImFH, "structureFactorImFH"},
+        prop_info{&rayx::DesignElement::getStructureFactorReFHC, &rayx::DesignElement::setStructureFactorReFHC, "structureFactorReFHC"},
+        prop_info{&rayx::DesignElement::getStructureFactorImFHC, &rayx::DesignElement::setStructureFactorImFHC, "structureFactorImFHC"},
+        prop_info{&rayx::DesignElement::getUnitCellVolume, &rayx::DesignElement::setUnitCellVolume, "unitCellVolume"},
+        prop_info{&rayx::DesignElement::getDSpacing2, &rayx::DesignElement::setDSpacing2, "dSpacing2"},
+        prop_info{&rayx::DesignElement::getThicknessSubstrate, &rayx::DesignElement::setThicknessSubstrate, "thicknessSubstrate"},
+        prop_info{&rayx::DesignElement::getRoughnessSubstrate, &rayx::DesignElement::setRoughnessSubstrate, "roughnessSubstrate"},
+        prop_info{&rayx::DesignElement::getDesignPlane, &rayx::DesignElement::setDesignPlane, "designPlane"},
+        prop_info{&rayx::DesignElement::getSurfaceCoatingType, &rayx::DesignElement::setSurfaceCoatingType, "surfaceCoatingType"},
+        prop_info{&rayx::DesignElement::getMaterialCoating, &rayx::DesignElement::setMaterialCoating, "materialCoating"},
+        prop_info{&rayx::DesignElement::getThicknessCoating, &rayx::DesignElement::setThicknessCoating, "thicknessCoating"},
+        prop_info{&rayx::DesignElement::getRoughnessCoating, &rayx::DesignElement::setRoughnessCoating, "roughnessCoating"});
+};
+
+static_assert(Structure<rayx::DesignElement>);
+
+template <>
+struct info<rayx::DesignSource> {
+    static constexpr const char* type_name = "Source";
+
+    static constexpr auto fields = std::make_tuple(
+        prop_info{&rayx::DesignSource::getName, &rayx::DesignSource::setName, "name"},
+        prop_info{&rayx::DesignSource::getType, &rayx::DesignSource::setType, "type"},
+        prop_info{&rayx::DesignSource::getWidthDist, &rayx::DesignSource::setWidthDist, "widthDist"},
+        prop_info{&rayx::DesignSource::getHeightDist, &rayx::DesignSource::setHeightDist, "heightDist"},
+        prop_info{&rayx::DesignSource::getHorDist, &rayx::DesignSource::setHorDist, "horDist"},
+        prop_info{&rayx::DesignSource::getVerDist, &rayx::DesignSource::setVerDist, "verDist"},
+        prop_info{&rayx::DesignSource::getHorDivergence, &rayx::DesignSource::setHorDivergence, "horDivergence"},
+        prop_info{&rayx::DesignSource::getVerDivergence, &rayx::DesignSource::setVerDivergence, "verDivergence"},
+        prop_info{&rayx::DesignSource::getVerEBeamDivergence, &rayx::DesignSource::setVerEBeamDivergence, "verEBeamDivergence"},
+        prop_info{&rayx::DesignSource::getSourceDepth, &rayx::DesignSource::setSourceDepth, "sourceDepth"},
+        prop_info{&rayx::DesignSource::getSourceHeight, &rayx::DesignSource::setSourceHeight, "sourceHeight"},
+        prop_info{&rayx::DesignSource::getSourceWidth, &rayx::DesignSource::setSourceWidth, "sourceWidth"},
+        prop_info{&rayx::DesignSource::getBendingRadius, &rayx::DesignSource::setBendingRadius, "bendingRadius"},
+        prop_info{&rayx::DesignSource::getEnergySpread, &rayx::DesignSource::setEnergySpread, "energySpread"},
+        prop_info{&rayx::DesignSource::getEnergySpreadType, &rayx::DesignSource::setEnergySpreadType, "energySpreadType"},
+        prop_info{&rayx::DesignSource::getEnergyDistributionType, &rayx::DesignSource::setEnergyDistributionType, "energyDistributionType"},
+        prop_info{&rayx::DesignSource::getEnergySpreadUnit, &rayx::DesignSource::setEnergySpreadUnit, "energySpreadUnit"},
+        prop_info{&rayx::DesignSource::getElectronEnergy, &rayx::DesignSource::setElectronEnergy, "electronEnergy"},
+        prop_info{&rayx::DesignSource::getElectronEnergyOrientation, &rayx::DesignSource::setElectronEnergyOrientation, "electronEnergyOrientation"},
+        prop_info{&rayx::DesignSource::getNumberOfSeparateEnergies, &rayx::DesignSource::setNumberOfSeparateEnergies, "numberOfSeparateEnergies"},
+        prop_info{&rayx::DesignSource::getEnergy, &rayx::DesignSource::setEnergy, "energy"},
+        prop_info{&rayx::DesignSource::getPhotonFlux, &rayx::DesignSource::setPhotonFlux, "photonFlux"},
+        prop_info{&rayx::DesignSource::getNumberOfRays, &rayx::DesignSource::setNumberOfRays, "numberOfRays"},
+        prop_info{&rayx::DesignSource::getPosition, &rayx::DesignSource::setPosition, "position"},
+        prop_info{&rayx::DesignSource::getOrientation, &rayx::DesignSource::setOrientation, "orientation"},
+        prop_info{&rayx::DesignSource::getNumOfCircles, &rayx::DesignSource::setNumOfCircles, "numOfCircles"},
+        prop_info{&rayx::DesignSource::getMaxOpeningAngle, &rayx::DesignSource::setMaxOpeningAngle, "maxOpeningAngle"},
+        prop_info{&rayx::DesignSource::getMinOpeningAngle, &rayx::DesignSource::setMinOpeningAngle, "minOpeningAngle"},
+        prop_info{&rayx::DesignSource::getDeltaOpeningAngle, &rayx::DesignSource::setDeltaOpeningAngle, "deltaOpeningAngle"},
+        prop_info{&rayx::DesignSource::getSigmaType, &rayx::DesignSource::setSigmaType, "sigmaType"},
+        prop_info{&rayx::DesignSource::getUndulatorLength, &rayx::DesignSource::setUndulatorLength, "undulatorLength"},
+        prop_info{&rayx::DesignSource::getElectronSigmaX, &rayx::DesignSource::setElectronSigmaX, "electronSigmaX"},
+        prop_info{&rayx::DesignSource::getElectronSigmaXs, &rayx::DesignSource::setElectronSigmaXs, "electronSigmaXs"},
+        prop_info{&rayx::DesignSource::getElectronSigmaY, &rayx::DesignSource::setElectronSigmaY, "electronSigmaY"},
+        prop_info{&rayx::DesignSource::getElectronSigmaYs, &rayx::DesignSource::setElectronSigmaYs, "electronSigmaYs"});
+    // prop_info{&rayx::DesignSource::getRayList, &rayx::DesignSource::setRayList, "rayList"});
+};
+
+static_assert(Structure<rayx::DesignSource>);
+
+}  // namespace reflect
 
 template <typename T>
 struct data_buffer {
@@ -78,14 +295,14 @@ struct Rays {
     data_buffer<std::complex<double>> electric_field_y;
     data_buffer<std::complex<double>> electric_field_z;
     data_buffer<double> path_length;
-    data_buffer<RAYX::Order> order;
-    data_buffer<RAYX::EventType> event_type;
-    data_buffer<RAYX::Order> last_element_id;
-    data_buffer<RAYX::Order> source_id;
-    data_buffer<int> ray_id;
-    data_buffer<int> event_id;
+    data_buffer<int32_t> order;
+    data_buffer<rayx::EventType> event_type;
+    data_buffer<int32_t> last_element_id;
+    data_buffer<int32_t> source_id;
+    data_buffer<int32_t> ray_id;
+    data_buffer<int32_t> event_id;
 
-    Rays(RAYX::RaySoA&& rays) {
+    Rays(rayx::Rays&& rays) {
         position_x.data = std::move(rays.position_x);
         position_y.data = std::move(rays.position_y);
         position_z.data = std::move(rays.position_z);
@@ -101,72 +318,20 @@ struct Rays {
             electric_field_y.data[i] = toStdComplex(rays.electric_field_y[i]);
             electric_field_z.data[i] = toStdComplex(rays.electric_field_z[i]);
         }
-        path_length.data = std::move(rays.path_length);
+        path_length.data = std::move(rays.optical_path_length);
         order.data = std::move(rays.order);
         event_type.data = std::move(rays.event_type);
-        last_element_id.data = std::move(rays.element_id);
+        last_element_id.data = std::move(rays.object_id);
         source_id.data = std::move(rays.source_id);
         ray_id.data = std::move(rays.path_id);
     }
-
-    Rays(RAYX::BundleHistory& bundles) {
-        size_t n_rays = 0;
-        for (auto&& bundle : bundles) {
-            n_rays += bundle.size();
-        }
-
-        position_x.data.resize(n_rays);
-        position_y.data.resize(n_rays);
-        position_z.data.resize(n_rays);
-        direction_x.data.resize(n_rays);
-        direction_y.data.resize(n_rays);
-        direction_z.data.resize(n_rays);
-        energy.data.resize(n_rays);
-        electric_field_x.data.resize(n_rays);
-        electric_field_y.data.resize(n_rays);
-        electric_field_z.data.resize(n_rays);
-        path_length.data.resize(n_rays);
-        order.data.resize(n_rays);
-        event_type.data.resize(n_rays);
-        last_element_id.data.resize(n_rays);
-        source_id.data.resize(n_rays);
-        ray_id.data.resize(n_rays);
-        event_id.data.resize(n_rays);
-
-        size_t index = 0;
-        for (size_t i = 0; i < bundles.size(); i++) {
-            for (size_t j = 0; j < bundles[i].size(); j++) {
-                RAYX::Ray ray = bundles[i][j];
-                position_x.data[index] = ray.m_position.x;
-                position_y.data[index] = ray.m_position.y;
-                position_z.data[index] = ray.m_position.z;
-                direction_x.data[index] = ray.m_direction.x;
-                direction_y.data[index] = ray.m_direction.y;
-                direction_z.data[index] = ray.m_direction.z;
-                energy.data[index] = ray.m_energy;
-                electric_field_x.data[index] = toStdComplex(ray.m_field.x);
-                electric_field_y.data[index] = toStdComplex(ray.m_field.y);
-                electric_field_z.data[index] = toStdComplex(ray.m_field.z);
-                path_length.data[index] = ray.m_pathLength;
-                order.data[index] = ray.m_order;
-                event_type.data[index] = ray.m_eventType;
-                last_element_id.data[index] = ray.m_lastElement;
-                source_id.data[index] = ray.m_sourceID;
-                ray_id.data[index] = i;
-                event_id.data[index] = j;
-                index++;
-            }
-        }
-    };
 };
-
-// std::string elementTypeToString(RAYX::ElementType type) { return RAYX::ElementStringMap.find(type)->second; }
 
 class Module {
   public:
     Module() {
         std::filesystem::path data_dir = getModulePath();
-        RAYX::ResourceHandler::getInstance().addLookUpPath(data_dir);
+        rayx::ResourceHandler::getInstance().addLookUpPath(data_dir);
     }
 };
 
@@ -175,74 +340,102 @@ PYBIND11_MODULE(rayx, m) {
 
     m.doc() = "rayx module";
 
-    // Add bindings here
-    pybind11::class_<Pos>(m, "position")
-        .def_property("x", &Pos::getX, &Pos::setX)
-        .def_property("y", &Pos::getY, &Pos::setY)
-        .def_property("z", &Pos::getZ, &Pos::setZ)
-        .def_property("w", &Pos::getW, &Pos::setW);
+    m.def("get_module_path", []() { return getModulePath().string(); }, "Get the path to the rayx module");
 
-    pybind11::class_<glm::dvec3>(m, "dvec3").def_readwrite("x", &glm::dvec3::x).def_readwrite("y", &glm::dvec3::y).def_readwrite("z", &glm::dvec3::z);
+    // element.cutout.width = 10.0
 
-    pybind11::class_<glm::dvec4>(m, "dvec4")
-        .def_readwrite("x", &glm::dvec4::x)
-        .def_readwrite("y", &glm::dvec4::y)
-        .def_readwrite("z", &glm::dvec4::z)
-        .def_readwrite("w", &glm::dvec4::w);
+    reflect::register_type<rayx::DesignElement>(m);
+    reflect::register_type<rayx::DesignSource>(m);
 
-    pybind11::enum_<RAYX::Material>(m, "Material")
-        .value("VACUUM", RAYX::Material::VACUUM)
-        .value("REFLECTIVE", RAYX::Material::REFLECTIVE)
-#define X(e, z, a, rho) .value(#e, RAYX::Material::e)
+    pybind11::enum_<rayx::Material>(m, "Material")
+        .value("VACUUM", rayx::Material::VACUUM)
+        .value("REFLECTIVE", rayx::Material::REFLECTIVE)
+#define X(e, z, a, rho) .value(#e, rayx::Material::e)
 #include <Material/materials.xmacro>
 #undef X
         .export_values();
 
-    pybind11::enum_<RAYX::SourceDist>(m, "SourceDist")
-        .value("UNIFORM", RAYX::SourceDist::Uniform)
-        .value("GAUSSIAN", RAYX::SourceDist::Gaussian)
-        .value("THIRDS", RAYX::SourceDist::Thirds)
-        .value("CIRCLE", RAYX::SourceDist::Circle)
+    pybind11::enum_<rayx::SourceDist>(m, "SourceDist")
+        .value("UNIFORM", rayx::SourceDist::Uniform)
+        .value("GAUSSIAN", rayx::SourceDist::Gaussian)
+        .value("THIRDS", rayx::SourceDist::Thirds)
+        .value("CIRCLE", rayx::SourceDist::Circle)
         .export_values();
 
-    pybind11::enum_<RAYX::SpreadType>(m, "SpreadType")
-        .value("HARD_EDGE", RAYX::SpreadType::HardEdge)
-        .value("SOFT_EDGE", RAYX::SpreadType::SoftEdge)
-        .value("SEPARATE_ENERGIES", RAYX::SpreadType::SeparateEnergies)
+    pybind11::enum_<rayx::SpreadType>(m, "SpreadType")
+        .value("HARD_EDGE", rayx::SpreadType::HardEdge)
+        .value("SOFT_EDGE", rayx::SpreadType::SoftEdge)
+        .value("SEPARATE_ENERGIES", rayx::SpreadType::SeparateEnergies)
         .export_values();
 
-    pybind11::enum_<RAYX::EnergyDistributionType>(m, "EnergyDistributionType")
-        .value("FILE", RAYX::EnergyDistributionType::File)
-        .value("VALUES", RAYX::EnergyDistributionType::Values)
-        .value("TOTAL", RAYX::EnergyDistributionType::Total)
-        .value("PARAM", RAYX::EnergyDistributionType::Param)
+    pybind11::enum_<rayx::EnergyDistributionType>(m, "EnergyDistributionType")
+        .value("FILE", rayx::EnergyDistributionType::File)
+        .value("VALUES", rayx::EnergyDistributionType::Values)
+        .value("TOTAL", rayx::EnergyDistributionType::Total)
+        .value("PARAM", rayx::EnergyDistributionType::Param)
         .export_values();
 
-    pybind11::enum_<RAYX::EnergySpreadUnit>(m, "EnergySpreadUnit")
-        .value("EV", RAYX::EnergySpreadUnit::EU_eV)
-        .value("PERCENT", RAYX::EnergySpreadUnit::EU_PERCENT)
+    pybind11::enum_<rayx::EnergySpreadUnit>(m, "EnergySpreadUnit")
+        .value("EV", rayx::EnergySpreadUnit::EU_eV)
+        .value("PERCENT", rayx::EnergySpreadUnit::EU_PERCENT)
         .export_values();
 
-    pybind11::enum_<RAYX::ElectronEnergyOrientation>(m, "ElectronEnergyOrientation")
-        .value("Clockwise", RAYX::ElectronEnergyOrientation::Clockwise)
-        .value("Counterclockwise", RAYX::ElectronEnergyOrientation::Counterclockwise)
+    pybind11::enum_<rayx::ElectronEnergyOrientation>(m, "ElectronEnergyOrientation")
+        .value("Clockwise", rayx::ElectronEnergyOrientation::Clockwise)
+        .value("Counterclockwise", rayx::ElectronEnergyOrientation::Counterclockwise)
         .export_values();
 
-    pybind11::class_<data_buffer<double>>(m, "double_array", pybind11::buffer_protocol())
+    pybind11::enum_<rayx::ElementType>(m, "ElementType")
+        .value("UNDEFINED", rayx::ElementType::Undefined)
+        .value("IMAGE_PLANE", rayx::ElementType::ImagePlane)
+        .value("CONE_MIRROR", rayx::ElementType::ConeMirror)
+        .value("CRYSTAL", rayx::ElementType::Crystal)
+        .value("CYLINDRICAL_MIRROR", rayx::ElementType::CylinderMirror)
+        .value("ELLIPSOID_MIRROR", rayx::ElementType::EllipsoidMirror)
+        .value("EXPERTS_MIRROR", rayx::ElementType::ExpertsMirror)
+        .value("FOIL", rayx::ElementType::Foil)
+        .value("PARABOLOID_MIRROR", rayx::ElementType::ParaboloidMirror)
+        .value("PLANE_GRATING", rayx::ElementType::PlaneGrating)
+        .value("PLANE_MIRROR", rayx::ElementType::PlaneMirror)
+        .value("REFLECTION_ZONEPLATE", rayx::ElementType::ReflectionZoneplate)
+        .value("SLIT", rayx::ElementType::Slit)
+        .value("SPHERE_GRATING", rayx::ElementType::SphereGrating)
+        .value("SPHERE", rayx::ElementType::Sphere)
+        .value("SPHERE_MIRROR", rayx::ElementType::SphereMirror)
+        .value("TOROID_MIRROR", rayx::ElementType::ToroidMirror)
+        .value("TOROID_GRATING", rayx::ElementType::ToroidGrating)
+        .value("POINT_SOURCE", rayx::ElementType::PointSource)
+        .value("MATRIX_SOURCE", rayx::ElementType::MatrixSource)
+        .value("DIPOLE_SOURCE", rayx::ElementType::DipoleSource)
+        .value("PIXEL_SOURCE", rayx::ElementType::PixelSource)
+        .value("CIRCLE_SOURCE", rayx::ElementType::CircleSource)
+        .value("SIMPLE_UNDULATOR_SOURCE", rayx::ElementType::SimpleUndulatorSource)
+        .value("RAY_LIST_SOURCE", rayx::ElementType::RayListSource)
+        .export_values();
+
+    pybind11::enum_<rayx::EventType>(m, "EventType")
+        .value("UNINITIALIZED", rayx::EventType::Uninitialized)
+        .value("EMITTED", rayx::EventType::Emitted)
+        .value("HIT_ELEMENT", rayx::EventType::HitElement)
+        .value("FATAL_ERROR", rayx::EventType::FatalError)
+        .value("ABSORBED", rayx::EventType::Absorbed)
+        .value("BEYOND_HORIZON", rayx::EventType::BeyondHorizon)
+        .value("TOO_MANY_EVENTS", rayx::EventType::TooManyEvents)
+        .export_values();
+
+    pybind11::class_<data_buffer<double>>(m, "Array[double]", pybind11::buffer_protocol())
         .def_buffer([](data_buffer<double>& db) { return db.buffer_info(); })
         .def("as_numpy", &data_buffer<double>::as_numpy_array);
-    pybind11::class_<data_buffer<std::complex<double>>>(m, "complex_array", pybind11::buffer_protocol())
+    pybind11::class_<data_buffer<std::complex<double>>>(m, "Array[complex[double]]", pybind11::buffer_protocol())
         .def_buffer([](data_buffer<std::complex<double>>& db) { return db.buffer_info(); })
         .def("as_numpy", &data_buffer<std::complex<double>>::as_numpy_array);
-    pybind11::class_<data_buffer<int>>(m, "int_array", pybind11::buffer_protocol())
+    pybind11::class_<data_buffer<int>>(m, "Array[int]", pybind11::buffer_protocol())
         .def_buffer([](data_buffer<int>& db) { return db.buffer_info(); })
         .def("as_numpy", &data_buffer<int>::as_numpy_array);
-    pybind11::class_<data_buffer<RAYX::Order>>(m, "order_array", pybind11::buffer_protocol())
-        .def_buffer([](data_buffer<RAYX::Order>& db) { return db.buffer_info(); })
-        .def("as_numpy", &data_buffer<RAYX::Order>::as_numpy_array);
-    pybind11::class_<data_buffer<RAYX::EventType>>(m, "event_type_array", pybind11::buffer_protocol())
-        .def_buffer([](data_buffer<RAYX::EventType>& db) { return db.buffer_info(); })
-        .def("as_numpy", &data_buffer<RAYX::EventType>::as_numpy_array);
+    pybind11::class_<data_buffer<rayx::EventType>>(m, "Array[event_type]", pybind11::buffer_protocol())
+        .def_buffer([](data_buffer<rayx::EventType>& db) { return db.buffer_info(); })
+        .def("as_numpy", &data_buffer<rayx::EventType>::as_numpy_array);
+
     pybind11::class_<Rays>(m, "Rays")
         .def_property_readonly("position_x", [](const Rays& r) { return r.position_x.as_numpy_array(); })
         .def_property_readonly("position_y", [](const Rays& r) { return r.position_y.as_numpy_array(); })
@@ -262,233 +455,18 @@ PYBIND11_MODULE(rayx, m) {
         .def_property_readonly("ray_id", [](const Rays& r) { return r.ray_id.as_numpy_array(); })
         .def_property_readonly("event_id", [](const Rays& r) { return r.event_id.as_numpy_array(); });
 
-    pybind11::class_<RAYX::DesignElement>(m, "Element")
-        .def_property_readonly("name", &RAYX::DesignElement::getName)
-        .def("__repr__",
-             [](RAYX::DesignElement& e) { return "Element(name = " + e.getName() + ", type = " + RAYX::elementTypeToString(e.getType()) + ")"; })
-        .def_property_readonly("position",
-                               [](RAYX::DesignElement& e) {
-                                   Pos p(e.getPosition(), [&](glm::dvec4 pos) { e.setPosition(pos); });
-                                   return p;
-                               })
-        .def_property(
-            "position_x", [](RAYX::DesignElement& e) { return e.getPosition().x; },
-            [](RAYX::DesignElement& e, double x) {
-                glm::dvec4 pos = e.getPosition();
-                pos.x = x;
-                e.setPosition(pos);
-            })
-        .def_property(
-            "position_y", [](RAYX::DesignElement& e) { return e.getPosition().y; },
-            [](RAYX::DesignElement& e, double y) {
-                glm::dvec4 pos = e.getPosition();
-                pos.y = y;
-                e.setPosition(pos);
-            })
-        .def_property(
-            "position_z", [](RAYX::DesignElement& e) { return e.getPosition().z; },
-            [](RAYX::DesignElement& e, double z) {
-                glm::dvec4 pos = e.getPosition();
-                pos.z = z;
-                e.setPosition(pos);
-            })
-        .def_property(
-            "misalignment_translation_x", [](RAYX::DesignElement& e) { return e.getMisalignment().m_translationXerror; },
-            [](RAYX::DesignElement& e, double x) {
-                RAYX::Misalignment m = e.getMisalignment();
-                m.m_translationXerror = x;
-                e.setMisalignment(m);
-            })
-        .def_property(
-            "misalignment_translation_y", [](RAYX::DesignElement& e) { return e.getMisalignment().m_translationYerror; },
-            [](RAYX::DesignElement& e, double y) {
-                RAYX::Misalignment m = e.getMisalignment();
-                m.m_translationYerror = y;
-                e.setMisalignment(m);
-            })
-        .def_property(
-            "misalignment_translation_z", [](RAYX::DesignElement& e) { return e.getMisalignment().m_translationZerror; },
-            [](RAYX::DesignElement& e, double z) {
-                RAYX::Misalignment m = e.getMisalignment();
-                m.m_translationZerror = z;
-                e.setMisalignment(m);
-            })
-        .def_property(
-            "misalignment_rotation_x", [](RAYX::DesignElement& e) { return e.getMisalignment().m_rotationXerror.rad; },
-            [](RAYX::DesignElement& e, double x) {
-                RAYX::Misalignment m = e.getMisalignment();
-                m.m_rotationXerror.rad = x;
-                e.setMisalignment(m);
-            })
-        .def_property(
-            "misalignment_rotation_y", [](RAYX::DesignElement& e) { return e.getMisalignment().m_rotationYerror.rad; },
-            [](RAYX::DesignElement& e, double y) {
-                RAYX::Misalignment m = e.getMisalignment();
-                m.m_rotationYerror.rad = y;
-                e.setMisalignment(m);
-            })
-        .def_property(
-            "misalignment_rotation_z", [](RAYX::DesignElement& e) { return e.getMisalignment().m_rotationZerror.rad; },
-            [](RAYX::DesignElement& e, double z) {
-                RAYX::Misalignment m = e.getMisalignment();
-                m.m_rotationZerror.rad = z;
-                e.setMisalignment(m);
-            })
-        .def_property(
-            "slope_error_sag", [](RAYX::DesignElement& e) { return e.getSlopeError().m_sag; },
-            [](RAYX::DesignElement& e, double s) {
-                RAYX::SlopeError se = e.getSlopeError();
-                se.m_sag = s;
-                e.setSlopeError(se);
-            })
-        .def_property(
-            "slope_error_mer", [](RAYX::DesignElement& e) { return e.getSlopeError().m_mer; },
-            [](RAYX::DesignElement& e, double m) {
-                RAYX::SlopeError se = e.getSlopeError();
-                se.m_mer = m;
-                e.setSlopeError(se);
-            })
-        .def_property(
-            "slope_error_thermal_distortion_amp", [](RAYX::DesignElement& e) { return e.getSlopeError().m_thermalDistortionAmp; },
-            [](RAYX::DesignElement& e, double tda) {
-                RAYX::SlopeError se = e.getSlopeError();
-                se.m_thermalDistortionAmp = tda;
-                e.setSlopeError(se);
-            })
-        .def_property(
-            "slope_error_thermal_distortion_sigma_x", [](RAYX::DesignElement& e) { return e.getSlopeError().m_thermalDistortionSigmaX; },
-            [](RAYX::DesignElement& e, double tdsx) {
-                RAYX::SlopeError se = e.getSlopeError();
-                se.m_thermalDistortionSigmaX = tdsx;
-                e.setSlopeError(se);
-            })
-        .def_property(
-            "slope_error_thermal_distortion_sigma_z", [](RAYX::DesignElement& e) { return e.getSlopeError().m_thermalDistortionSigmaZ; },
-            [](RAYX::DesignElement& e, double tdsz) {
-                RAYX::SlopeError se = e.getSlopeError();
-                se.m_thermalDistortionSigmaZ = tdsz;
-                e.setSlopeError(se);
-            })
-        .def_property(
-            "slope_error_cylindrical_bowing_amp", [](RAYX::DesignElement& e) { return e.getSlopeError().m_cylindricalBowingAmp; },
-            [](RAYX::DesignElement& e, double cba) {
-                RAYX::SlopeError se = e.getSlopeError();
-                se.m_cylindricalBowingAmp = cba;
-                e.setSlopeError(se);
-            })
-        .def_property(
-            "slope_error_cylindrical_bowing_radius", [](RAYX::DesignElement& e) { return e.getSlopeError().m_cylindricalBowingRadius; },
-            [](RAYX::DesignElement& e, double cbr) {
-                RAYX::SlopeError se = e.getSlopeError();
-                se.m_cylindricalBowingRadius = cbr;
-                e.setSlopeError(se);
-            })
-        .def_property(
-            "azimuthal_angle", [](RAYX::DesignElement& e) { return e.getAzimuthalAngle(); },
-            [](RAYX::DesignElement& e, double a) { e.setAzimuthalAngle(a); })
-        .def_property(
-            "material", [](RAYX::DesignElement& e) { return e.getMaterial(); }, [](RAYX::DesignElement& e, RAYX::Material m) { e.setMaterial(m); })
-        .def_property_readonly("orientation", &RAYX::DesignElement::getOrientation);
-    pybind11::class_<RAYX::DesignSource>(m, "Source")
-        .def_property_readonly("name", &RAYX::DesignSource::getName)
-        .def_property(
-            "position_x", [](RAYX::DesignSource& s) { return s.getPosition().x; },
-            [](RAYX::DesignSource& s, double x) {
-                glm::dvec4 pos = s.getPosition();
-                pos.x = x;
-                s.setPosition(pos);
-            })
-        .def_property(
-            "position_y", [](RAYX::DesignSource& s) { return s.getPosition().y; },
-            [](RAYX::DesignSource& s, double y) {
-                glm::dvec4 pos = s.getPosition();
-                pos.y = y;
-                s.setPosition(pos);
-            })
-        .def_property(
-            "position_z", [](RAYX::DesignSource& s) { return s.getPosition().z; },
-            [](RAYX::DesignSource& s, double z) {
-                glm::dvec4 pos = s.getPosition();
-                pos.z = z;
-                s.setPosition(pos);
-            })
-        .def_property(
-            "misalignment_translation_x", [](RAYX::DesignSource& s) { return s.getMisalignment().m_translationXerror; },
-            [](RAYX::DesignSource& s, double x) {
-                RAYX::Misalignment m = s.getMisalignment();
-                m.m_translationXerror = x;
-                s.setMisalignment(m);
-            })
-        .def_property(
-            "misalignment_translation_y", [](RAYX::DesignSource& s) { return s.getMisalignment().m_translationYerror; },
-            [](RAYX::DesignSource& s, double y) {
-                RAYX::Misalignment m = s.getMisalignment();
-                m.m_translationYerror = y;
-                s.setMisalignment(m);
-            })
-        .def_property(
-            "misalignment_translation_z", [](RAYX::DesignSource& s) { return s.getMisalignment().m_translationZerror; },
-            [](RAYX::DesignSource& s, double z) {
-                RAYX::Misalignment m = s.getMisalignment();
-                m.m_translationZerror = z;
-                s.setMisalignment(m);
-            })
-        .def_property(
-            "misalignment_rotation_x", [](RAYX::DesignSource& s) { return s.getMisalignment().m_rotationXerror.rad; },
-            [](RAYX::DesignSource& s, double x) {
-                RAYX::Misalignment m = s.getMisalignment();
-                m.m_rotationXerror.rad = x;
-                s.setMisalignment(m);
-            })
-        .def_property(
-            "misalignment_rotation_y", [](RAYX::DesignSource& s) { return s.getMisalignment().m_rotationYerror.rad; },
-            [](RAYX::DesignSource& s, double y) {
-                RAYX::Misalignment m = s.getMisalignment();
-                m.m_rotationYerror.rad = y;
-                s.setMisalignment(m);
-            })
-        .def_property(
-            "misalignment_rotation_z", [](RAYX::DesignSource& s) { return s.getMisalignment().m_rotationZerror.rad; },
-            [](RAYX::DesignSource& s, double z) {
-                RAYX::Misalignment m = s.getMisalignment();
-                m.m_rotationZerror.rad = z;
-                s.setMisalignment(m);
-            })
-        .def_property("width_distribution", &RAYX::DesignSource::getWidthDist, &RAYX::DesignSource::setWidthDist)
-        .def_property("height_distribution", &RAYX::DesignSource::getHeightDist, &RAYX::DesignSource::setHeightDist)
-        .def_property("horizontal_distribution", &RAYX::DesignSource::getHorDist, &RAYX::DesignSource::setHorDist)
-        .def_property("vertical_distribution", &RAYX::DesignSource::getVerDist, &RAYX::DesignSource::setVerDist)
-        .def_property("horizontal_divergence", &RAYX::DesignSource::getHorDivergence, &RAYX::DesignSource::setHorDivergence)
-        .def_property("vertical_divergence", &RAYX::DesignSource::getVerDivergence, &RAYX::DesignSource::setVerDivergence)
-        .def_property("vertical_electron_beam_divergence", &RAYX::DesignSource::getVerEBeamDivergence, &RAYX::DesignSource::setVerEBeamDivergence)
-        .def_property("source_depth", &RAYX::DesignSource::getSourceDepth, &RAYX::DesignSource::setSourceDepth)
-        .def_property("source_height", &RAYX::DesignSource::getSourceHeight, &RAYX::DesignSource::setSourceHeight)
-        .def_property("source_width", &RAYX::DesignSource::getSourceWidth, &RAYX::DesignSource::setSourceWidth)
-        .def_property("bending_radius", &RAYX::DesignSource::getBendingRadius, &RAYX::DesignSource::setBendingRadius)
-        .def_property("energy_spread", &RAYX::DesignSource::getEnergySpread, &RAYX::DesignSource::setEnergySpread)
-        .def_property("energy_spread_type", &RAYX::DesignSource::getEnergySpreadType, &RAYX::DesignSource::setEnergySpreadType)
-        .def("set_energy_distribution_file", &RAYX::DesignSource::setEnergyDistributionFile)
-        .def_property("energy_spread_unit", &RAYX::DesignSource::getEnergySpreadUnit, &RAYX::DesignSource::setEnergySpreadUnit)
-        .def_property("electron_energy", &RAYX::DesignSource::getElectronEnergy, &RAYX::DesignSource::setElectronEnergy)
-        .def_property("electron_energy_orientation", &RAYX::DesignSource::getElectronEnergyOrientation,
-                      &RAYX::DesignSource::setElectronEnergyOrientation)
-        .def_property("energy", &RAYX::DesignSource::getEnergy, &RAYX::DesignSource::setEnergy)
-        .def_property("photon_flux", &RAYX::DesignSource::getPhotonFlux, &RAYX::DesignSource::setPhotonFlux)
-        .def_property("number_of_rays", &RAYX::DesignSource::getNumberOfRays, &RAYX::DesignSource::setNumberOfRays)
-        .def("__repr__",
-             [](const RAYX::DesignSource& s) { return "Source(name = " + s.getName() + ", type = " + RAYX::elementTypeToString(s.getType()) + ")"; });
-
-    pybind11::class_<RAYX::Beamline>(m, "Beamline")
-        .def_property_readonly("elements", &RAYX::Beamline::getElements)
-        .def_property_readonly("sources", &RAYX::Beamline::getSources)
-        .def("trace", [](RAYX::Beamline& bl) {
-            RAYX::DeviceConfig deviceConfig = RAYX::DeviceConfig().enableBestDevice();
-            RAYX::Tracer tracer = RAYX::Tracer(deviceConfig);
-            std::vector<bool> recordMask(bl.numElements(), true);
-            RAYX::RaySoA s_of_a = tracer.trace(bl, RAYX::Sequential::No, 10000, 10, recordMask);
-            return Rays(std::move(s_of_a));
+    pybind11::class_<rayx::Beamline>(m, "Beamline")
+        .def_property_readonly("elements", &rayx::Beamline::getElements)
+        .def_property_readonly("sources", &rayx::Beamline::getSources)
+        .def("trace", [](rayx::Beamline& bl) {
+            rayx::DeviceConfig deviceConfig = rayx::DeviceConfig().enableBestDevice();
+            rayx::Tracer tracer = rayx::Tracer(deviceConfig);
+            rayx::ObjectMask obj_mask = rayx::ObjectMask::all();
+            rayx::RayAttrMask attr_mask = rayx::RayAttrMask::All;
+            rayx::Rays rays = tracer.trace(bl, rayx::Sequential::No, obj_mask, attr_mask, std::nullopt, std::nullopt);
+            return Rays(std::move(rays));
         });
 
     m.def(
-        "import_beamline", [](std::string path) { return RAYX::importBeamline(path); }, "Import a beamline from an RML file", pybind11::arg("path"));
+        "import_beamline", [](std::string path) { return rayx::importBeamline(path); }, "Import a beamline from an RML file", pybind11::arg("path"));
 }

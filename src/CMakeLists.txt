@@ -11,6 +11,6 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
 pybind11_add_module(rayx main.cpp)
 target_link_libraries(rayx PRIVATE rayx-core)
-target_include_directories(rayx PRIVATE $<TARGET_PROPERTY:rayx-core,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(rayx PRIVATE $<TARGET_PROPERTY:rayx-core,INTERFACE_INCLUDE_DIRECTORIES> ${CUDA_TOOLKIT_INCLUDE}/cccl)
 
 install(TARGETS rayx DESTINATION .)

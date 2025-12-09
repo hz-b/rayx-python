@@ -1,6 +1,6 @@
 [project]
 name = "rayx"
-version = "0.3.9"
+version = "0.4.1"
 description = "Python bindings for RAYX"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -22,12 +22,12 @@ build = ["*manylinux*"]
 manylinux-x86_64-image = "manylinux_2_28"
 before-all = [
     "yum install -y wget hdf5-devel",
-    "rpm -i cuda-repo-rhel8-12-8-local-12.8.0_570.86.10-1.x86_64.rpm",
+    "rpm -i cuda-repo-rhel8-13-0-local-13.0.2_580.95.05-1.x86_64.rpm",
     "yum clean all",
-    "yum -y install cuda-toolkit-12-8",
-    "export PATH=/usr/local/cuda-12.8/bin:$PATH",
-    "export LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH",
-    "export CUDA_HOME=/usr/local/cuda-12.8",
+    "yum -y install cuda-toolkit-13-0",
+    "export PATH=/usr/local/cuda-13.0/bin:$PATH",
+    "export LD_LIBRARY_PATH=/usr/local/cuda-13.0/lib64:$LD_LIBRARY_PATH",
+    "export CUDA_HOME=/usr/local/cuda-13.0",
     "nvcc --version",
     "wget https://archives.boost.io/release/1.88.0/source/boost_1_88_0.tar.gz",
     "tar xf boost_1_88_0.tar.gz",
@@ -38,4 +38,4 @@ before-all = [
     "./b2 install --prefix=/usr/local",
     "cd ..",
 ]
-environment = { PATH = "/usr/local/cuda-12.8/bin:$PATH", LD_LIBRARY_PATH = "/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH" }
+environment = { PATH = "/usr/local/cuda-13.0/bin:$PATH", LD_LIBRARY_PATH = "/usr/local/cuda-13.0/lib64:$LD_LIBRARY_PATH" }
