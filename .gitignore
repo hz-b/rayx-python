@@ -1,11 +1,8 @@
 build
-**/*.cpp
-**/*.so
-Data
 .vscode
-rayx.egg-info
-boost_1_86_0*
 dist
+test.py
+cuda-*
 wheelhouse
-pkgs/rayx-data
-pkgs/rayx.egg-info
+test.ipynb
+venv/
