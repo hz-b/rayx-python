@@ -458,13 +458,27 @@ PYBIND11_MODULE(rayx, m) {
     pybind11::class_<rayx::Beamline>(m, "Beamline")
         .def_property_readonly("elements", &rayx::Beamline::getElements)
         .def_property_readonly("sources", &rayx::Beamline::getSources)
-        .def("trace", [](rayx::Beamline& bl) {
-            rayx::DeviceConfig deviceConfig = rayx::DeviceConfig().enableBestDevice();
-            rayx::Tracer tracer = rayx::Tracer(deviceConfig);
-            rayx::ObjectMask obj_mask = rayx::ObjectMask::all();
-            rayx::RayAttrMask attr_mask = rayx::RayAttrMask::All;
-            rayx::Rays rays = tracer.trace(bl, rayx::Sequential::No, obj_mask, attr_mask, std::nullopt, std::nullopt);
-            return Rays(std::move(rays));
+        .def("trace",
+             [](rayx::Beamline& bl) {
+                 rayx::DeviceConfig deviceConfig = rayx::DeviceConfig().enableBestDevice();
+                 rayx::Tracer tracer = rayx::Tracer(deviceConfig);
+                 rayx::ObjectMask obj_mask = rayx::ObjectMask::all();
+                 rayx::RayAttrMask attr_mask = rayx::RayAttrMask::All;
+                 rayx::Rays rays = tracer.trace(bl, rayx::Sequential::No, obj_mask, attr_mask, std::nullopt, std::nullopt);
+                 return Rays(std::move(rays));
+             })
+        .def("__getitem__", [](rayx::Beamline& bl, const std::string& name) {
+            for (auto element : bl.getElements()) {
+                if (element->getName() == name) {
+                    return pybind11::cast(element);
+                }
+            }
+            for (auto source : bl.getSources()) {
+                if (source->getName() == name) {
+                    return pybind11::cast(source);
+                }
+            }
+            throw std::runtime_error("No element or source with name '" + name + "' found in beamline.");
         });
 
     m.def(
