@@ -336,7 +336,7 @@ class Module {
     }
 };
 
-PYBIND11_MODULE(rayx, m) {
+PYBIND11_MODULE(_core, m) {
     static Module module_instance;
 
     m.doc() = "rayx module";

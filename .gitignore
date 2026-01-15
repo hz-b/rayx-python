@@ -6,4 +6,7 @@ cuda-*
 wheelhouse
 test.ipynb
 rayx-*.whl
-.venv
+venv/
+.venv/
+**.so
+__pycache__/

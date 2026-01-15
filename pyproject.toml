@@ -4,7 +4,6 @@ version = "0.4.3"
 description = "Python bindings for RAYX"
 readme = "README.md"
 license = { file = "LICENSE" }
-
 dependencies = ["numpy >= 2.0.0"]
 requires-python = ">=3.7"
 authors = [{ name = "RAYX team", email = "rayx-support@helmholtz-berlin.de" }]
@@ -12,9 +11,24 @@ maintainers = [
     { name = "RAYX team", email = "rayx-support@helmholtz-berlin.de" },
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "matplotlib>=3.5",
+    "ipython",
+]
+test = [
+    "pytest>=7.0",
+    "pytest-cov",
+]
+
 [build-system]
 requires = ["scikit-build-core", "pybind11"]
 build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+wheel.packages = ["python/rayx"]
+cmake.build-type = "Release"
 
 [tool.cibuildwheel]
 archs = ["x86_64"]
