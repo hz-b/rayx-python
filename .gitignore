@@ -5,4 +5,4 @@ test.py
 cuda-*
 wheelhouse
 test.ipynb
-venv/
+rayx-*.whl
