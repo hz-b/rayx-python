@@ -6,3 +6,4 @@ cuda-*
 wheelhouse
 test.ipynb
 rayx-*.whl
+.venv
