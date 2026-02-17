@@ -1,6 +1,6 @@
 [project]
 name = "rayx"
-version = "0.4.1"
+version = "0.4.3"
 description = "Python bindings for RAYX"
 readme = "README.md"
 license = { file = "LICENSE" }

@@ -300,7 +300,7 @@ struct Rays {
     data_buffer<int32_t> last_element_id;
     data_buffer<int32_t> source_id;
     data_buffer<int32_t> ray_id;
-    data_buffer<int32_t> event_id;
+    data_buffer<int32_t> path_event_id;
 
     Rays(rayx::Rays&& rays) {
         position_x.data = std::move(rays.position_x);
@@ -324,6 +324,7 @@ struct Rays {
         last_element_id.data = std::move(rays.object_id);
         source_id.data = std::move(rays.source_id);
         ray_id.data = std::move(rays.path_id);
+        path_event_id.data = std::move(rays.path_event_id);
     }
 };
 
@@ -453,7 +454,7 @@ PYBIND11_MODULE(rayx, m) {
         .def_property_readonly("last_element_id", [](const Rays& r) { return r.last_element_id.as_numpy_array(); })
         .def_property_readonly("source_id", [](const Rays& r) { return r.source_id.as_numpy_array(); })
         .def_property_readonly("ray_id", [](const Rays& r) { return r.ray_id.as_numpy_array(); })
-        .def_property_readonly("event_id", [](const Rays& r) { return r.event_id.as_numpy_array(); });
+        .def_property_readonly("path_event_id", [](const Rays& r) { return r.path_event_id.as_numpy_array(); });
 
     pybind11::class_<rayx::Beamline>(m, "Beamline")
         .def_property_readonly("elements", &rayx::Beamline::getElements)
