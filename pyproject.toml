@@ -4,8 +4,12 @@ version = "0.4.3"
 description = "Python bindings for RAYX"
 readme = "README.md"
 license = { file = "LICENSE" }
-dependencies = ["numpy >= 2.0.0"]
-requires-python = ">=3.7"
+dependencies = [
+    "numpy >= 2.0.0",
+    "pandas>=2.3.3",
+    "pytest>=8.4.2",
+]
+requires-python = ">=3.9"
 authors = [{ name = "RAYX team", email = "rayx-support@helmholtz-berlin.de" }]
 maintainers = [
     { name = "RAYX team", email = "rayx-support@helmholtz-berlin.de" },
@@ -34,3 +38,9 @@ cmake.build-type = "Release"
 archs = ["x86_64"]
 build = ["*manylinux*"]
 manylinux-x86_64-image = "gitea.valentinstoecker.de/vls/manylinux_cuda"
+
+[tool.pytest.ini_options]
+pythonpath = ["python"]
+
+[tool.uv]
+package = false
