@@ -52,6 +52,23 @@ fi
 # Add python directory to PYTHONPATH for development
 export PYTHONPATH="$(pwd)/python:$PYTHONPATH"
 
+source .venv/bin/activate
+python3 -c "
+import sys
+sys.path.insert(0, 'python')
+import rayx._core as m
+with open('python/rayx/_core.pyi', 'w') as f:
+    f.write('# Auto-generated stub\n')
+    for name in dir(m):
+        if name.startswith('_'): continue
+        obj = getattr(m, name)
+        if callable(obj):
+            f.write(f'def {name}(*args, **kwargs): ...\n')
+        else:
+            f.write(f'{name}: object\n')
+"
+deactivate
+
 echo "✓ Development environment ready!"
 echo ""
 echo "To use:"

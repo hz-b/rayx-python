@@ -20,11 +20,6 @@ except ImportError:
 # Re-export everything from C++ module
 from ._core import *
 
-# Add Python enhancements
-def hello():
-    """Test function to verify Python wrapper is included"""
-    return "Hello from Python wrapper!"
-
 def get_info():
     """Get information about the RAYX installation"""
     info = {
@@ -35,12 +30,8 @@ def get_info():
     }
     return info
 
-def enhanced_function():
-    """Pure Python function using C++ backend"""
-    # This is a placeholder - customize based on your actual C++ functions
-    # result = _core.cpp_function()  # Call C++ function
-    # Add Python processing
-    return "Enhanced function - add your logic here"
+# From other files
+from .data import rays_to_df
 
-__version__ = "0.4.1"
-__all__ = ['hello', 'get_info', 'enhanced_function']
+__version__ = "0.4.3"
+__all__ = ['get_info', 'rays_to_df']
