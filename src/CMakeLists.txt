@@ -30,13 +30,11 @@ target_include_directories(core PRIVATE
 add_custom_command(
   TARGET core 
   COMMAND ${CMAKE_COMMAND} -E copy_directory
-    #"${CMAKE_CURRENT_SOURCE_DIR}/extern/rayx/Data"
     "${RAYX_SOURCE_DIR}/Data"
     "${CMAKE_CURRENT_BINARY_DIR}/share/RAYX/Data"
 )
 
 file(GLOB_RECURSE PY_SRC *.py)
-# file(COPY PY_SRC ".")
 
 add_custom_command(
   TARGET core

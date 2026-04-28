@@ -1,13 +1,10 @@
 """
 RAY-X Python bindings
 """
-import sys
-from pathlib import Path
 import pandas as pd
+from . import core
 
-# Import the C++ extension module
-
-def rays_to_df(rays, columns: list | None = None) -> pd.DataFrame:
+def rays_to_df(rays: core.Rays, columns: list | None = None) -> pd.DataFrame:
     if columns is None:
         columns = [
             "path_id",
