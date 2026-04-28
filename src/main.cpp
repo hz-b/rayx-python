@@ -362,6 +362,22 @@ NB_MODULE(core, m) {
 
     py::enum_<rayx::DesignPlane>(m, "DesignPlane").value("XY", rayx::DesignPlane::XY).value("XZ", rayx::DesignPlane::XZ);
 
+    py::enum_<rayx::BehaviourType>(m, "BehaviourType")
+        .value("Mirror", rayx::BehaviourType::Mirror)
+        .value("Grating", rayx::BehaviourType::Grating)
+        .value("Slit", rayx::BehaviourType::Slit)
+        .value("Rzp", rayx::BehaviourType::Rzp)
+        .value("ImagePlane", rayx::BehaviourType::ImagePlane)
+        .value("Crystal", rayx::BehaviourType::Crystal)
+        .value("Foil", rayx::BehaviourType::Foil);
+
+    py::enum_<rayx::SurfaceCoatingType>(m, "SurfaceCoatingType")
+        .value("SubstrateOnly", rayx::SurfaceCoatingType::SubstrateOnly)
+        .value("OneCoating", rayx::SurfaceCoatingType::OneCoating)
+        .value("MultipleCoatings", rayx::SurfaceCoatingType::MultipleCoatings);
+
+    py::enum_<rayx::SigmaType>(m, "SigmaType").value("Standard", rayx::SigmaType::ST_STANDARD).value("Accurate", rayx::SigmaType::ST_ACCURATE);
+
     py::enum_<rayx::ElementType>(m, "ElementType")
         .value("UNDEFINED", rayx::ElementType::Undefined)
         .value("IMAGE_PLANE", rayx::ElementType::ImagePlane)
