@@ -1,10 +1,11 @@
 [project]
 name = "rayx"
-version = "0.4.3"
+version = "0.4.5"
 description = "Python bindings for RAYX"
 readme = "README.md"
 license = { file = "LICENSE" }
 dependencies = [
+    "matplotlib>=3.9.4",
     "numpy >= 2.0.0",
     "pandas>=2.3.3",
     "pytest>=8.4.2",
@@ -16,18 +17,11 @@ maintainers = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "matplotlib>=3.5",
-    "ipython",
-]
-test = [
-    "pytest>=7.0",
-    "pytest-cov",
-]
+dev = ["pytest>=7.0", "matplotlib>=3.5", "ipython"]
+test = ["pytest>=7.0", "pytest-cov"]
 
 [build-system]
-requires = ["scikit-build-core", "pybind11"]
+requires = ["scikit-build-core", "nanobind"]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
@@ -44,3 +38,6 @@ pythonpath = ["python"]
 
 [tool.uv]
 package = false
+
+[dependency-groups]
+dev = ["twine>=6.2.0"]

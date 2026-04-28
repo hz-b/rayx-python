@@ -4,23 +4,22 @@
 #include <Rml/Locate.h>
 #include <Tracer/Tracer.h>
 #include <Variant.h>
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
 
 #include <concepts>
 #include <filesystem>
 
 #include "reflection.hpp"
 
-using namespace pybind11::literals;
-
 std::complex<double> toStdComplex(const rayx::complex::Complex& c) { return std::complex<double>(c.real(), c.imag()); }
 
-std::filesystem::path getModulePath() {
-    pybind11::gil_scoped_acquire acquire;
-    pybind11::object rayx = pybind11::module::import("rayxdata");
-    return std::filesystem::path(rayx.attr("__file__").cast<std::string>()).parent_path().parent_path();
+std::filesystem::path getModulePath(py::module_ m) {
+    py::gil_scoped_acquire acquire;
+    return std::filesystem::path(py::cast<std::string>(m.attr("__file__"))).parent_path();
 }
 
 namespace reflect {
@@ -202,7 +201,7 @@ struct info<rayx::DesignElement> {
         prop_info{&rayx::DesignElement::getCurvatureType, &rayx::DesignElement::setCurvatureType, "curvatureType"},
         prop_info{&rayx::DesignElement::getBehaviourType, &rayx::DesignElement::setBehaviourType, "behaviourType"},
         prop_info{&rayx::DesignElement::getCrystalType, &rayx::DesignElement::setCrystalType, "crystalType"},
-        // prop_info{&rayx::DesignElement::getCrystalMaterial, &rayx::DesignElement::setCrystalMaterial, "crystalMaterial"},
+        prop_info{&rayx::DesignElement::getCrystalMaterial, &rayx::DesignElement::setCrystalMaterial, "crystalMaterial"},
         prop_info{&rayx::DesignElement::getOffsetAngle, &rayx::DesignElement::setOffsetAngle, "offsetAngle"},
         prop_info{&rayx::DesignElement::getStructureFactorReF0, &rayx::DesignElement::setStructureFactorReF0, "structureFactorReF0"},
         prop_info{&rayx::DesignElement::getStructureFactorImF0, &rayx::DesignElement::setStructureFactorImF0, "structureFactorImF0"},
@@ -270,123 +269,116 @@ static_assert(Structure<rayx::DesignSource>);
 
 }  // namespace reflect
 
+// TODO: dmat4x4
+// TODO: rays struct
+// TODO: LayerCoating
+// TODO: CurvatureType
+
+template <>
+struct py::detail::dtype_traits<rayx::EventType> {
+    static constexpr dlpack::dtype value = py::detail::dtype_traits<uint32_t>::value;
+    static constexpr auto name = py::detail::dtype_traits<uint32_t>::name;
+};
+
 template <typename T>
-struct data_buffer {
-    std::vector<T> data;
+py::ndarray<py::numpy, T, py::ndim<1>> to_numpy(std::vector<T>& v) {
+    return py::ndarray<py::numpy, T, py::ndim<1>>(v.data(), {v.size()});
+}
 
-    pybind11::buffer_info buffer_info() { return pybind11::buffer_info(data.data(), data.size()); }
-
-    pybind11::object as_numpy_array() const {
-        pybind11::gil_scoped_acquire acquire;
-        pybind11::object np = pybind11::module::import("numpy");
-        return np.attr("array")(this, "copy"_a = false);
-    }
-};
-
-struct Rays {
-    data_buffer<double> position_x;
-    data_buffer<double> position_y;
-    data_buffer<double> position_z;
-    data_buffer<double> direction_x;
-    data_buffer<double> direction_y;
-    data_buffer<double> direction_z;
-    data_buffer<double> energy;
-    data_buffer<std::complex<double>> electric_field_x;
-    data_buffer<std::complex<double>> electric_field_y;
-    data_buffer<std::complex<double>> electric_field_z;
-    data_buffer<double> path_length;
-    data_buffer<int32_t> order;
-    data_buffer<rayx::EventType> event_type;
-    data_buffer<int32_t> last_element_id;
-    data_buffer<int32_t> source_id;
-    data_buffer<int32_t> ray_id;
-    data_buffer<int32_t> path_event_id;
-
-    Rays(rayx::Rays&& rays) {
-        position_x.data = std::move(rays.position_x);
-        position_y.data = std::move(rays.position_y);
-        position_z.data = std::move(rays.position_z);
-        direction_x.data = std::move(rays.direction_x);
-        direction_y.data = std::move(rays.direction_y);
-        direction_z.data = std::move(rays.direction_z);
-        energy.data = std::move(rays.energy);
-        electric_field_x.data.resize(rays.electric_field_x.size());
-        electric_field_y.data.resize(rays.electric_field_y.size());
-        electric_field_z.data.resize(rays.electric_field_z.size());
-        for (size_t i = 0; i < rays.electric_field_x.size(); i++) {
-            electric_field_x.data[i] = toStdComplex(rays.electric_field_x[i]);
-            electric_field_y.data[i] = toStdComplex(rays.electric_field_y[i]);
-            electric_field_z.data[i] = toStdComplex(rays.electric_field_z[i]);
-        }
-        path_length.data = std::move(rays.optical_path_length);
-        order.data = std::move(rays.order);
-        event_type.data = std::move(rays.event_type);
-        last_element_id.data = std::move(rays.object_id);
-        source_id.data = std::move(rays.source_id);
-        ray_id.data = std::move(rays.path_id);
-        path_event_id.data = std::move(rays.path_event_id);
-    }
-};
-
-class Module {
-  public:
-    Module() {
-        std::filesystem::path data_dir = getModulePath();
-        rayx::ResourceHandler::getInstance().addLookUpPath(data_dir);
-    }
-};
-
-PYBIND11_MODULE(_core, m) {
-    static Module module_instance;
+NB_MODULE(core, m) {
+    std::filesystem::path module_path = getModulePath(m);
+    rayx::ResourceHandler::getInstance().addLookUpPath(module_path);
 
     m.doc() = "rayx module";
 
-    m.def("get_module_path", []() { return getModulePath().string(); }, "Get the path to the rayx module");
-
-    // element.cutout.width = 10.0
+    m.def("get_module_path", [=]() { return module_path.string(); }, "Get the path to the rayx module");
 
     reflect::register_type<rayx::DesignElement>(m);
     reflect::register_type<rayx::DesignSource>(m);
 
-    pybind11::enum_<rayx::Material>(m, "Material")
-        .value("VACUUM", rayx::Material::VACUUM)
-        .value("REFLECTIVE", rayx::Material::REFLECTIVE)
+    py::enum_<rayx::Material>(m, "Material").value("VACUUM", rayx::Material::VACUUM).value("REFLECTIVE", rayx::Material::REFLECTIVE)
 #define X(e, z, a, rho) .value(#e, rayx::Material::e)
 #include <Material/materials.xmacro>
 #undef X
-        .export_values();
-
-    pybind11::enum_<rayx::SourceDist>(m, "SourceDist")
+        ;
+    py::enum_<rayx::SourceDist>(m, "SourceDist")
         .value("UNIFORM", rayx::SourceDist::Uniform)
         .value("GAUSSIAN", rayx::SourceDist::Gaussian)
         .value("THIRDS", rayx::SourceDist::Thirds)
-        .value("CIRCLE", rayx::SourceDist::Circle)
-        .export_values();
+        .value("CIRCLE", rayx::SourceDist::Circle);
 
-    pybind11::enum_<rayx::SpreadType>(m, "SpreadType")
+    py::enum_<rayx::SpreadType>(m, "SpreadType")
         .value("HARD_EDGE", rayx::SpreadType::HardEdge)
         .value("SOFT_EDGE", rayx::SpreadType::SoftEdge)
-        .value("SEPARATE_ENERGIES", rayx::SpreadType::SeparateEnergies)
-        .export_values();
+        .value("SEPARATE_ENERGIES", rayx::SpreadType::SeparateEnergies);
 
-    pybind11::enum_<rayx::EnergyDistributionType>(m, "EnergyDistributionType")
+    py::enum_<rayx::EnergyDistributionType>(m, "EnergyDistributionType")
         .value("FILE", rayx::EnergyDistributionType::File)
         .value("VALUES", rayx::EnergyDistributionType::Values)
         .value("TOTAL", rayx::EnergyDistributionType::Total)
-        .value("PARAM", rayx::EnergyDistributionType::Param)
-        .export_values();
+        .value("PARAM", rayx::EnergyDistributionType::Param);
 
-    pybind11::enum_<rayx::EnergySpreadUnit>(m, "EnergySpreadUnit")
+    py::enum_<rayx::EnergySpreadUnit>(m, "EnergySpreadUnit")
         .value("EV", rayx::EnergySpreadUnit::EU_eV)
-        .value("PERCENT", rayx::EnergySpreadUnit::EU_PERCENT)
-        .export_values();
+        .value("PERCENT", rayx::EnergySpreadUnit::EU_PERCENT);
 
-    pybind11::enum_<rayx::ElectronEnergyOrientation>(m, "ElectronEnergyOrientation")
+    py::enum_<rayx::ElectronEnergyOrientation>(m, "ElectronEnergyOrientation")
         .value("Clockwise", rayx::ElectronEnergyOrientation::Clockwise)
-        .value("Counterclockwise", rayx::ElectronEnergyOrientation::Counterclockwise)
-        .export_values();
+        .value("Counterclockwise", rayx::ElectronEnergyOrientation::Counterclockwise);
 
-    pybind11::enum_<rayx::ElementType>(m, "ElementType")
+    py::enum_<rayx::ToroidType>(m, "ToroidType").value("Convex", rayx::ToroidType::Convex).value("Concave", rayx::ToroidType::Concave);
+
+    py::enum_<rayx::CutoutType>(m, "CutoutType")
+        .value("Unlimited", rayx::CutoutType::Unlimited)
+        .value("Rect", rayx::CutoutType::Rect)
+        .value("Trapezoid", rayx::CutoutType::Trapezoid)
+        .value("Elliptical", rayx::CutoutType::Elliptical);
+
+    py::enum_<rayx::CentralBeamstop>(m, "CentralBeamstop")
+        .value("None", rayx::CentralBeamstop::None)
+        .value("Rectangle", rayx::CentralBeamstop::Rectangle)
+        .value("Elliptical", rayx::CentralBeamstop::Elliptical);
+
+    py::enum_<rayx::CylinderDirection>(m, "CylinderDirection")
+        .value("LongRadiusR", rayx::CylinderDirection::LongRadiusR)
+        .value("ShortRadiusRho", rayx::CylinderDirection::ShortRadiusRho);
+
+    py::enum_<rayx::FigureRotation>(m, "FigureRotation")
+        .value("Yes", rayx::FigureRotation::Yes)
+        .value("Plane", rayx::FigureRotation::Plane)
+        .value("A11", rayx::FigureRotation::A11);
+
+    py::enum_<rayx::CurvatureType>(m, "CurvatureType")
+        .value("Plane", rayx::CurvatureType::Plane)
+        .value("Toroidal", rayx::CurvatureType::Toroidal)
+        .value("Spherical", rayx::CurvatureType::Spherical)
+        .value("Cubic", rayx::CurvatureType::Cubic)
+        .value("Cone", rayx::CurvatureType::Cone)
+        .value("Cylinder", rayx::CurvatureType::Cylinder)
+        .value("Ellipsoid", rayx::CurvatureType::Ellipsoid)
+        .value("Paraboloid", rayx::CurvatureType::Paraboloid)
+        .value("Quadric", rayx::CurvatureType::Quadric)
+        .value("RzpSphere", rayx::CurvatureType::RzpSphere);
+
+    py::enum_<rayx::DesignPlane>(m, "DesignPlane").value("XY", rayx::DesignPlane::XY).value("XZ", rayx::DesignPlane::XZ);
+
+    py::enum_<rayx::BehaviourType>(m, "BehaviourType")
+        .value("Mirror", rayx::BehaviourType::Mirror)
+        .value("Grating", rayx::BehaviourType::Grating)
+        .value("Slit", rayx::BehaviourType::Slit)
+        .value("Rzp", rayx::BehaviourType::Rzp)
+        .value("ImagePlane", rayx::BehaviourType::ImagePlane)
+        .value("Crystal", rayx::BehaviourType::Crystal)
+        .value("Foil", rayx::BehaviourType::Foil);
+
+    py::enum_<rayx::SurfaceCoatingType>(m, "SurfaceCoatingType")
+        .value("SubstrateOnly", rayx::SurfaceCoatingType::SubstrateOnly)
+        .value("OneCoating", rayx::SurfaceCoatingType::OneCoating)
+        .value("MultipleCoatings", rayx::SurfaceCoatingType::MultipleCoatings);
+
+    py::enum_<rayx::SigmaType>(m, "SigmaType").value("Standard", rayx::SigmaType::ST_STANDARD).value("Accurate", rayx::SigmaType::ST_ACCURATE);
+
+    py::enum_<rayx::ElementType>(m, "ElementType")
         .value("UNDEFINED", rayx::ElementType::Undefined)
         .value("IMAGE_PLANE", rayx::ElementType::ImagePlane)
         .value("CONE_MIRROR", rayx::ElementType::ConeMirror)
@@ -411,54 +403,53 @@ PYBIND11_MODULE(_core, m) {
         .value("PIXEL_SOURCE", rayx::ElementType::PixelSource)
         .value("CIRCLE_SOURCE", rayx::ElementType::CircleSource)
         .value("SIMPLE_UNDULATOR_SOURCE", rayx::ElementType::SimpleUndulatorSource)
-        .value("RAY_LIST_SOURCE", rayx::ElementType::RayListSource)
-        .export_values();
+        .value("RAY_LIST_SOURCE", rayx::ElementType::RayListSource);
 
-    pybind11::enum_<rayx::EventType>(m, "EventType")
+    py::enum_<rayx::EventType>(m, "EventType")
         .value("UNINITIALIZED", rayx::EventType::Uninitialized)
         .value("EMITTED", rayx::EventType::Emitted)
         .value("HIT_ELEMENT", rayx::EventType::HitElement)
         .value("FATAL_ERROR", rayx::EventType::FatalError)
         .value("ABSORBED", rayx::EventType::Absorbed)
         .value("BEYOND_HORIZON", rayx::EventType::BeyondHorizon)
-        .value("TOO_MANY_EVENTS", rayx::EventType::TooManyEvents)
-        .export_values();
+        .value("TOO_MANY_EVENTS", rayx::EventType::TooManyEvents);
 
-    pybind11::class_<data_buffer<double>>(m, "Array[double]", pybind11::buffer_protocol())
-        .def_buffer([](data_buffer<double>& db) { return db.buffer_info(); })
-        .def("as_numpy", &data_buffer<double>::as_numpy_array);
-    pybind11::class_<data_buffer<std::complex<double>>>(m, "Array[complex[double]]", pybind11::buffer_protocol())
-        .def_buffer([](data_buffer<std::complex<double>>& db) { return db.buffer_info(); })
-        .def("as_numpy", &data_buffer<std::complex<double>>::as_numpy_array);
-    pybind11::class_<data_buffer<int>>(m, "Array[int]", pybind11::buffer_protocol())
-        .def_buffer([](data_buffer<int>& db) { return db.buffer_info(); })
-        .def("as_numpy", &data_buffer<int>::as_numpy_array);
-    pybind11::class_<data_buffer<rayx::EventType>>(m, "Array[event_type]", pybind11::buffer_protocol())
-        .def_buffer([](data_buffer<rayx::EventType>& db) { return db.buffer_info(); })
-        .def("as_numpy", &data_buffer<rayx::EventType>::as_numpy_array);
+    py::class_<rayx::Rays>(m, "Rays")
+        .def_prop_ro("path_id", [](rayx::Rays& rays) { return to_numpy(rays.path_id); })
+        .def_prop_ro("path_event_id", [](rayx::Rays& rays) { return to_numpy(rays.path_event_id); })
+        .def_prop_ro(
+            "position_x", [](rayx::Rays& rays) { return to_numpy(rays.position_x); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "position_y", [](rayx::Rays& rays) { return to_numpy(rays.position_y); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "position_z", [](rayx::Rays& rays) { return to_numpy(rays.position_z); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "direction_x", [](rayx::Rays& rays) { return to_numpy(rays.direction_x); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "direction_y", [](rayx::Rays& rays) { return to_numpy(rays.direction_y); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "direction_z", [](rayx::Rays& rays) { return to_numpy(rays.direction_z); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "electric_field_x", [](rayx::Rays& rays) { return to_numpy(rays.electric_field_x); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "electric_field_y", [](rayx::Rays& rays) { return to_numpy(rays.electric_field_y); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "electric_field_z", [](rayx::Rays& rays) { return to_numpy(rays.electric_field_z); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "optical_path_length", [](rayx::Rays& rays) { return to_numpy(rays.optical_path_length); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "energy", [](rayx::Rays& rays) { return to_numpy(rays.energy); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "order", [](rayx::Rays& rays) { return to_numpy(rays.order); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "object_id", [](rayx::Rays& rays) { return to_numpy(rays.object_id); }, py::rv_policy::reference_internal)
+        .def_prop_ro(
+            "source_id", [](rayx::Rays& rays) { return to_numpy(rays.source_id); }, py::rv_policy::reference_internal)
+        .def_prop_ro("event_type", [](rayx::Rays& rays) { return to_numpy(rays.event_type); }, py::rv_policy::reference_internal);
 
-    pybind11::class_<Rays>(m, "Rays")
-        .def_property_readonly("position_x", [](const Rays& r) { return r.position_x.as_numpy_array(); })
-        .def_property_readonly("position_y", [](const Rays& r) { return r.position_y.as_numpy_array(); })
-        .def_property_readonly("position_z", [](const Rays& r) { return r.position_z.as_numpy_array(); })
-        .def_property_readonly("direction_x", [](const Rays& r) { return r.direction_x.as_numpy_array(); })
-        .def_property_readonly("direction_y", [](const Rays& r) { return r.direction_y.as_numpy_array(); })
-        .def_property_readonly("direction_z", [](const Rays& r) { return r.direction_z.as_numpy_array(); })
-        .def_property_readonly("energy", [](const Rays& r) { return r.energy.as_numpy_array(); })
-        .def_property_readonly("electric_field_x", [](const Rays& r) { return r.electric_field_x.as_numpy_array(); })
-        .def_property_readonly("electric_field_y", [](const Rays& r) { return r.electric_field_y.as_numpy_array(); })
-        .def_property_readonly("electric_field_z", [](const Rays& r) { return r.electric_field_z.as_numpy_array(); })
-        .def_property_readonly("path_length", [](const Rays& r) { return r.path_length.as_numpy_array(); })
-        .def_property_readonly("order", [](const Rays& r) { return r.order.as_numpy_array(); })
-        .def_property_readonly("event_type", [](const Rays& r) { return r.event_type.as_numpy_array(); })
-        .def_property_readonly("last_element_id", [](const Rays& r) { return r.last_element_id.as_numpy_array(); })
-        .def_property_readonly("source_id", [](const Rays& r) { return r.source_id.as_numpy_array(); })
-        .def_property_readonly("ray_id", [](const Rays& r) { return r.ray_id.as_numpy_array(); })
-        .def_property_readonly("path_event_id", [](const Rays& r) { return r.path_event_id.as_numpy_array(); });
-
-    pybind11::class_<rayx::Beamline>(m, "Beamline")
-        .def_property_readonly("elements", &rayx::Beamline::getElements)
-        .def_property_readonly("sources", &rayx::Beamline::getSources)
+    py::class_<rayx::Beamline>(m, "Beamline")
+        .def_prop_ro("elements", &rayx::Beamline::getElements)
+        .def_prop_ro("sources", &rayx::Beamline::getSources)
         .def("trace",
              [](rayx::Beamline& bl) {
                  rayx::DeviceConfig deviceConfig = rayx::DeviceConfig().enableBestDevice();
@@ -466,22 +457,21 @@ PYBIND11_MODULE(_core, m) {
                  rayx::ObjectMask obj_mask = rayx::ObjectMask::all();
                  rayx::RayAttrMask attr_mask = rayx::RayAttrMask::All;
                  rayx::Rays rays = tracer.trace(bl, rayx::Sequential::No, obj_mask, attr_mask, std::nullopt, std::nullopt);
-                 return Rays(std::move(rays));
+                 return rays;
              })
         .def("__getitem__", [](rayx::Beamline& bl, const std::string& name) {
             for (auto element : bl.getElements()) {
                 if (element->getName() == name) {
-                    return pybind11::cast(element);
+                    return py::cast(element);
                 }
             }
             for (auto source : bl.getSources()) {
                 if (source->getName() == name) {
-                    return pybind11::cast(source);
+                    return py::cast(source);
                 }
             }
             throw std::runtime_error("No element or source with name '" + name + "' found in beamline.");
         });
 
-    m.def(
-        "import_beamline", [](std::string path) { return rayx::importBeamline(path); }, "Import a beamline from an RML file", pybind11::arg("path"));
+    m.def("import_beamline", [](std::string path) { return rayx::importBeamline(path); }, "Import a beamline from an RML file", py::arg("path"));
 }
