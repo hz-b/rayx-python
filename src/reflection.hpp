@@ -1,13 +1,15 @@
 #pragma once
 
 #include <Variant.h>
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/variant.h>
 
+#include <array>
 #include <concepts>
 #include <functional>
 #include <tuple>
 
-namespace py = pybind11;
+namespace py = nanobind;
 
 namespace reflect {
 
@@ -70,16 +72,38 @@ concept Variant = requires(T v) {
     v.visit(any_callable{});
 };
 
+template <typename M>
+py::sig property_sig(const char* name) {
+    py::handle type = py::type<M>();
+    std::string s = std::string("def ") + name + "(self): -> " + py::type_name(type).c_str();
+    return py::sig(s.c_str());
+}
+
+template <typename T>
+struct pytype_t {
+    using value_t = T;
+};
+
+template <Structure S>
+struct pytype_t<S> {
+    using value_t = Ref<S>;
+};
+
+template <typename V, typename... Ts>
+struct pytype_t<rayx::Variant<V, Ts...>> {
+    using value_t = std::variant<Ref<Ts>...>;
+};
+
 template <typename S, typename M>
 void bind(py::class_<S>& cls, const field_info<S, M>& field) {
-    cls.def_property(
+    cls.def_prop_rw(
         field.name,
-        [field](S& self) {
+        [field](S& self) -> py::typed<py::object, typename pytype_t<M>::value_t> {
             if constexpr (Structure<M>) {
                 return py::cast(Ref<M>{[&self, field]() { return self.*(field.member); }, [&self, field](M value) { self.*(field.member) = value; }});
             } else if constexpr (Variant<M>) {
                 M m = self.*(field.member);
-                return m.visit([field, &self]<typename U>(U&& value) {
+                return m.visit([field, &self]<typename U>(U&& value) -> py::object {
                     return py::cast(Ref<std::remove_cvref_t<U>>{
                         [&self, field] { return self.*(field.member).template get<std::remove_cvref_t<U>>(); },
                         [&self, field](U new_value) { self.*(field.member).template get<std::remove_cvref_t<U>>() = new_value; }});
@@ -92,15 +116,15 @@ void bind(py::class_<S>& cls, const field_info<S, M>& field) {
 
 template <typename S, typename M>
 void bind(py::class_<S>& cls, const prop_info<S, M>& prop) {
-    cls.def_property(
+    cls.def_prop_rw(
         prop.name,
-        [prop](S& self) {
+        [prop](S& self) -> py::typed<py::object, typename pytype_t<M>::value_t> {
             if constexpr (Structure<M>) {
                 return py::cast(
                     Ref<M>{[&self, prop]() { return (self.*(prop.getter))(); }, [&self, prop](M value) { (self.*(prop.setter))(value); }});
             } else if constexpr (Variant<M>) {
                 M m = (self.*(prop.getter))();
-                return m.visit([prop, &self]<typename U>(U&& value) {
+                return m.visit([prop, &self]<typename U>(U&& value) -> py::object {
                     return py::cast(Ref<std::remove_cvref_t<U>>{[&self, prop] {
                                                                     M m_local = (self.*(prop.getter))();
                                                                     return m_local.template get<std::remove_cvref_t<U>>();
@@ -119,9 +143,9 @@ void bind(py::class_<S>& cls, const prop_info<S, M>& prop) {
 
 template <typename S, typename M>
 void bind_ref(py::class_<Ref<S>>& cls, const field_info<S, M>& field) {
-    cls.def_property(
+    cls.def_prop_rw(
         field.name,
-        [field](Ref<S>& self) {
+        [field](Ref<S>& self) -> py::typed<py::object, typename pytype_t<M>::value_t> {
             if constexpr (Structure<M>) {
                 return py::cast(Ref<M>{[&self, field]() { return self.get().*(field.member); },
                                        [&self, field](M value) {
@@ -132,7 +156,7 @@ void bind_ref(py::class_<Ref<S>>& cls, const field_info<S, M>& field) {
             } else if constexpr (Variant<M>) {
                 S s = self.get();
                 M m = s.*(field.member);
-                return m.visit([field, &self, s]<typename U>(U&& value) {
+                return m.visit([field, &self, s]<typename U>(U&& value) -> py::object {
                     return py::cast(Ref<std::remove_cvref_t<U>>{[&self, field] {
                                                                     S s_local = self.get();
                                                                     return s_local.*(field.member);
@@ -156,9 +180,9 @@ void bind_ref(py::class_<Ref<S>>& cls, const field_info<S, M>& field) {
 
 template <typename S, typename M>
 void bind_ref(py::class_<Ref<S>>& cls, const prop_info<S, M>& prop) {
-    cls.def_property(
+    cls.def_prop_rw(
         prop.name,
-        [prop](Ref<S>& self) {
+        [prop](Ref<S>& self) -> py::typed<py::object, typename pytype_t<M>::value_t> {
             if constexpr (Structure<M>) {
                 return py::cast(Ref<M>{[&self, prop]() {
                                            S s = self.get();
@@ -172,7 +196,7 @@ void bind_ref(py::class_<Ref<S>>& cls, const prop_info<S, M>& prop) {
             } else if constexpr (Variant<M>) {
                 S s = self.get();
                 M m = (s.*(prop.getter))();
-                return m.visit([prop, &self, s]<typename U>(U&& value) {
+                return m.visit([prop, &self, s]<typename U>(U&& value) -> py::object {
                     return py::cast(Ref<std::remove_cvref_t<U>>{[&self, prop] {
                                                                     S s_local = self.get();
                                                                     M m_local = (s_local.*(prop.getter))();
@@ -210,6 +234,11 @@ concept is_primitive = std::is_arithmetic_v<T> || std::is_same_v<T, std::string>
 template <is_primitive T>
 void register_type(py::module_& m) {};
 
+/* template <typename T, size_t N>
+void register_type(py::module_& m) {
+    register_type<T>(m);
+}; */
+
 template <Variant T>
 void register_type(py::module_& m);
 
@@ -237,13 +266,10 @@ void register_type(py::module_& m) {
 
     // add conversion from Ref<T> to T if T is copy constructible
     if constexpr (std::is_copy_constructible_v<T>) {
-        py::class_<Ref<T>> ref_cls(m, ("Ref[" + std::string(name) + "]").c_str());
+        py::class_<Ref<T>> ref_cls(m, (std::string(name) + "Ref").c_str());
         std::apply([&](auto&&... field) { (bind_ref(ref_cls, field), ...); }, info<T>::fields);
 
-        cls.def(py::init([](const Ref<T>& ref) {
-            T value = ref.get();
-            return new T(value);
-        }));
+        cls.def("__init__", [](T* res, const Ref<T>& ref) { *res = ref.get(); });
         py::implicitly_convertible<Ref<T>, T>();
     }
 }
@@ -256,9 +282,7 @@ void register_alternative(py::module_& m, py::class_<T> cls) {
 
     register_type<U>(m);
 
-    cls.def(py::init([](const U& u) { return new T(u); }));
-
-    py::implicitly_convertible<U, T>();
+    cls.def(py::init_implicit<U>());
 }
 
 template <typename T, typename U, typename... Alternatives>
@@ -277,12 +301,9 @@ void register_type(py::module_& m) {
     py::class_<T> cls(m, name);
     cls.def(py::init<>());
 
-    py::class_<Ref<T>> ref_cls(m, ("Ref[" + std::string(name) + "]").c_str());
+    py::class_<Ref<T>> ref_cls(m, (std::string(name) + "Ref").c_str());
 
-    cls.def(py::init([](const Ref<T>& ref) {
-        T value = ref.get();
-        return new T(value);
-    }));
+    cls.def("__init__", [](T* res, const Ref<T>& ref) { *res = ref.get(); });
 
     py::implicitly_convertible<Ref<T>, T>();
 
