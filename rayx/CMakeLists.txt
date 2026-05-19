@@ -43,5 +43,7 @@ add_custom_command(
     "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
-# Install to rayx/ subdirectory
-install(TARGETS core LIBRARY DESTINATION rayx)
+# Install the core library, *.py files and the share subdirectory to the "." install location for scikit_build_core
+install(TARGETS core DESTINATION .)
+install(FILES ${PY_SRC} DESTINATION .)
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/share/RAYX/Data" DESTINATION .)
