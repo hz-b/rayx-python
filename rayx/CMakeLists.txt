@@ -44,7 +44,7 @@ add_custom_command(
 )
 
 # Install the core library, *.py files and the share subdirectory to the "." install location for scikit_build_core
-install(TARGETS core DESTINATION ./rayx)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/core.pyi" DESTINATION ./rayx)
-install(FILES ${PY_SRC} DESTINATION ./rayx)
-install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/share/RAYX/Data" DESTINATION ./rayx/share/RAYX)
+install(TARGETS core DESTINATION rayx)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/core.pyi" DESTINATION rayx)
+install(FILES ${PY_SRC} DESTINATION rayx)
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/share/RAYX/Data" DESTINATION rayx/share/RAYX)
