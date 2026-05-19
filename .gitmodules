@@ -4,3 +4,6 @@
 [submodule "extern/rayx"]
 	path = extern/rayx
 	url = https://github.com/hz-b/rayx
+[submodule "extern/nanobind"]
+	path = extern/nanobind
+	url = https://github.com/wjakob/nanobind
