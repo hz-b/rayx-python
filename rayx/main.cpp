@@ -1,5 +1,6 @@
 #include <Beamline/StringConversion.h>
 #include <Core.h>
+#include <Random.h>
 #include <Rml/Importer.h>
 #include <Rml/Locate.h>
 #include <Tracer/Tracer.h>
@@ -7,6 +8,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
 #include <nanobind/stl/array.h>
+#include <nanobind/stl/optional.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
@@ -451,14 +453,27 @@ NB_MODULE(core, m) {
         .def_prop_ro("elements", &rayx::Beamline::getElements)
         .def_prop_ro("sources", &rayx::Beamline::getSources)
         .def("trace",
-             [](rayx::Beamline& bl) {
+             [](rayx::Beamline& bl, bool sequential, std::optional<uint32_t> seed, std::optional<int> max_events) {
+                 // Seed the RNG: a given seed yields deterministic results, otherwise the seed is derived from system time.
+                 if (seed)
+                     rayx::fixSeed(*seed);
+                 else
+                     rayx::randomSeed();
+
                  rayx::DeviceConfig deviceConfig = rayx::DeviceConfig().enableBestDevice();
                  rayx::Tracer tracer = rayx::Tracer(deviceConfig);
                  rayx::ObjectMask obj_mask = rayx::ObjectMask::all();
                  rayx::RayAttrMask attr_mask = rayx::RayAttrMask::All;
-                 rayx::Rays rays = tracer.trace(bl, rayx::Sequential::No, obj_mask, attr_mask, std::nullopt, std::nullopt);
+                 rayx::Sequential seq = sequential ? rayx::Sequential::Yes : rayx::Sequential::No;
+                 rayx::Rays rays = tracer.trace(bl, seq, obj_mask, attr_mask, max_events, std::nullopt);
                  return rays;
-             })
+             },
+             py::arg("sequential") = false, py::arg("seed") = std::optional<uint32_t>(), py::arg("max_events") = std::optional<int>(),
+             "Trace rays through the beamline.\n\n"
+             "sequential: if True, rays hit elements in beamline order (sequential tracing); "
+             "if False (default), tracing is non-sequential.\n"
+             "seed: if given, fixes the RNG seed for deterministic results; if None (default), a random seed is used.\n"
+             "max_events: optional maximum number of events recorded per ray (only used in non-sequential tracing).")
         .def("__getitem__", [](rayx::Beamline& bl, const std::string& name) {
             for (auto element : bl.getElements()) {
                 if (element->getName() == name) {
@@ -474,4 +489,9 @@ NB_MODULE(core, m) {
         });
 
     m.def("import_beamline", [](std::string path) { return rayx::importBeamline(path); }, "Import a beamline from an RML file", py::arg("path"));
+
+    m.def("fix_seed", &rayx::fixSeed, py::arg("seed") = rayx::FIXED_SEED,
+          "Fix the global RNG seed so that subsequent traces are deterministic. Defaults to the canonical fixed test seed.");
+    m.def("random_seed", &rayx::randomSeed, "Seed the global RNG randomly (based on system time).");
+    m.attr("FIXED_SEED") = rayx::FIXED_SEED;
 }
