@@ -416,6 +416,15 @@ NB_MODULE(core, m) {
         .value("BEYOND_HORIZON", rayx::EventType::BeyondHorizon)
         .value("TOO_MANY_EVENTS", rayx::EventType::TooManyEvents);
 
+    // Device classes that tracing can run on. Use these to restrict device selection in trace() and list_devices().
+    py::enum_<rayx::DeviceConfig::DeviceType>(m, "DeviceType")
+        .value("CpuSerial", rayx::DeviceConfig::DeviceType::CpuSerial)
+        .value("CpuParallel", rayx::DeviceConfig::DeviceType::CpuParallel)
+        .value("Cpu", rayx::DeviceConfig::DeviceType::Cpu)
+        .value("GpuCuda", rayx::DeviceConfig::DeviceType::GpuCuda)
+        .value("Gpu", rayx::DeviceConfig::DeviceType::Gpu)
+        .value("All", rayx::DeviceConfig::DeviceType::All);
+
     py::class_<rayx::Rays>(m, "Rays")
         .def_prop_ro("path_id", [](rayx::Rays& rays) { return to_numpy(rays.path_id); })
         .def_prop_ro("path_event_id", [](rayx::Rays& rays) { return to_numpy(rays.path_event_id); })
@@ -453,14 +462,30 @@ NB_MODULE(core, m) {
         .def_prop_ro("elements", &rayx::Beamline::getElements)
         .def_prop_ro("sources", &rayx::Beamline::getSources)
         .def("trace",
-             [](rayx::Beamline& bl, bool sequential, std::optional<uint32_t> seed, std::optional<int> max_events) {
+             [](rayx::Beamline& bl, bool sequential, std::optional<uint32_t> seed, std::optional<int> max_events,
+                std::optional<int> device_index, rayx::DeviceConfig::DeviceType device_type) {
                  // Seed the RNG: a given seed yields deterministic results, otherwise the seed is derived from system time.
                  if (seed)
                      rayx::fixSeed(*seed);
                  else
                      rayx::randomSeed();
 
-                 rayx::DeviceConfig deviceConfig = rayx::DeviceConfig().enableBestDevice();
+                 // We validate device_index here rather than let enableDeviceByIndex() call RAYX_EXIT,
+                 // which would terminate the Python interpreter.
+                 rayx::DeviceConfig deviceConfig(device_type);
+                 if (deviceConfig.devices.empty())
+                     throw std::runtime_error(
+                         "No compute device available for the requested device_type. Use list_devices() to see the available devices "
+                         "(note: GPU tracing requires a CUDA-enabled build and an NVIDIA GPU).");
+                 if (device_index) {
+                     if (*device_index < 0 || static_cast<size_t>(*device_index) >= deviceConfig.devices.size())
+                         throw std::out_of_range("device_index " + std::to_string(*device_index) +
+                                                 " is out of range; use list_devices() to see the available devices");
+                     deviceConfig.enableDeviceByIndex(static_cast<size_t>(*device_index));
+                 } else {
+                     deviceConfig.enableBestDevice();
+                 }
+
                  rayx::Tracer tracer = rayx::Tracer(deviceConfig);
                  rayx::ObjectMask obj_mask = rayx::ObjectMask::all();
                  rayx::RayAttrMask attr_mask = rayx::RayAttrMask::All;
@@ -469,11 +494,16 @@ NB_MODULE(core, m) {
                  return rays;
              },
              py::arg("sequential") = false, py::arg("seed") = std::optional<uint32_t>(), py::arg("max_events") = std::optional<int>(),
+             py::arg("device_index") = std::optional<int>(), py::arg("device_type") = rayx::DeviceConfig::DeviceType::All,
              "Trace rays through the beamline.\n\n"
              "sequential: if True, rays hit elements in beamline order (sequential tracing); "
              "if False (default), tracing is non-sequential.\n"
              "seed: if given, fixes the RNG seed for deterministic results; if None (default), a random seed is used.\n"
-             "max_events: optional maximum number of events recorded per ray (only used in non-sequential tracing).")
+             "max_events: optional maximum number of events recorded per ray (only used in non-sequential tracing).\n"
+             "device_index: optional index of the compute device to use (see list_devices()); if None (default), the best "
+             "available device is chosen automatically.\n"
+             "device_type: restrict device selection to a device class (DeviceType.Cpu, DeviceType.Gpu, or DeviceType.All; "
+             "default All).")
         .def("__getitem__", [](rayx::Beamline& bl, const std::string& name) {
             for (auto element : bl.getElements()) {
                 if (element->getName() == name) {
@@ -489,6 +519,36 @@ NB_MODULE(core, m) {
         });
 
     m.def("import_beamline", [](std::string path) { return rayx::importBeamline(path); }, "Import a beamline from an RML file", py::arg("path"));
+
+    m.def(
+        "list_devices",
+        [](rayx::DeviceConfig::DeviceType device_type) {
+            // Mirror the CLI's --list-devices: enumerate the available compute devices of the requested type.
+            auto typeName = [](rayx::DeviceConfig::DeviceType t) -> const char* {
+                switch (t) {
+                    case rayx::DeviceConfig::DeviceType::CpuSerial: return "CpuSerial";
+                    case rayx::DeviceConfig::DeviceType::CpuParallel: return "CpuParallel";
+                    case rayx::DeviceConfig::DeviceType::GpuCuda: return "GpuCuda";
+                    default: return "Unknown";
+                }
+            };
+            rayx::DeviceConfig config(device_type);
+            py::list result;
+            for (size_t i = 0; i < config.devices.size(); ++i) {
+                const auto& device = config.devices[i];
+                py::dict entry;
+                entry["index"] = static_cast<int>(i);
+                entry["name"] = device.name;
+                entry["type"] = typeName(device.type);
+                result.append(entry);
+            }
+            return result;
+        },
+        py::arg("device_type") = rayx::DeviceConfig::DeviceType::All,
+        "List the compute devices available for tracing as a list of dicts with 'index', 'name' and 'type'.\n"
+        "The 'index' is what you pass to Beamline.trace(device_index=...).\n"
+        "device_type: restrict the listing to a device class (DeviceType.Cpu, DeviceType.Gpu, or DeviceType.All; default All).\n"
+        "Note: GPU devices only appear in a CUDA-enabled build running on a machine with an NVIDIA GPU.");
 
     m.def("fix_seed", &rayx::fixSeed, py::arg("seed") = rayx::FIXED_SEED,
           "Fix the global RNG seed so that subsequent traces are deterministic. Defaults to the canonical fixed test seed.");
