@@ -12,9 +12,12 @@ pip install rayx
 
 ## Development
 
-To develop the package you need to:
-1. build the core module with cmake
-2. 
+The package can be built in two ways:
+1. with `cmake`
+2. with `uv build`
+
+The 1. option supports build cashing and the build result can be used immediatly without any installation steps. See [example](./examples/metrix.ipynb)
+The 2. option builds the package as a wheel. The resulting wheel can be installed in your python environment.
 
 ### Running tests
 
