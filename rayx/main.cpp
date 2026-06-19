@@ -24,6 +24,75 @@ std::filesystem::path getModulePath(py::module_ m) {
     return std::filesystem::path(py::cast<std::string>(m.attr("__file__"))).parent_path();
 }
 
+namespace nanobind::detail {
+
+// nanobind caster for glm::dmat4x4, used for the `orientation` property of DesignElement / DesignSource.
+//
+// Convention: Python is row-major, indexed [row][col] (numpy / nested lists); glm is column-major
+// (m[col] is a column), so we map python[row][col] <-> glm m[col][row]. np.asarray(c.orientation)
+// is thus a faithful (4, 4) view and assigning it straight back is a round-trip identity.
+//
+// Caveat: rayx-core only persists the 3 direction vectors (the 3x3 rotation block). DesignSource
+// also sets the homogeneous 4th column to (0, 0, 0, 1), but DesignElement leaves it unset, so an
+// element's orientation reads back with arbitrary values in the last numpy column. setOrientation
+// ignores that column, so tracing and the 3x3 round-trip are unaffected.
+template <>
+struct type_caster<glm::dmat4x4> {
+    NB_TYPE_CASTER(glm::dmat4x4, const_name("numpy.ndarray[dtype=float64, shape=(4, 4)]"))
+
+    // Accepts a (4, 4) numpy array or a nested 4x4 sequence; rejects anything not exactly 4x4.
+    bool from_python(handle src, uint8_t /*flags*/, cleanup_list* /*cleanup*/) noexcept {
+        PyObject* obj = src.ptr();
+        if (PySequence_Length(obj) != 4) {
+            PyErr_Clear();
+            return false;
+        }
+        glm::dmat4x4 result;
+        for (int row = 0; row < 4; ++row) {
+            PyObject* row_obj = PySequence_GetItem(obj, row);
+            if (!row_obj) {
+                PyErr_Clear();
+                return false;
+            }
+            if (PySequence_Length(row_obj) != 4) {
+                PyErr_Clear();
+                Py_DECREF(row_obj);
+                return false;
+            }
+            for (int col = 0; col < 4; ++col) {
+                PyObject* elem = PySequence_GetItem(row_obj, col);
+                if (!elem) {
+                    PyErr_Clear();
+                    Py_DECREF(row_obj);
+                    return false;
+                }
+                double v = PyFloat_AsDouble(elem);
+                Py_DECREF(elem);
+                if (v == -1.0 && PyErr_Occurred()) {
+                    PyErr_Clear();
+                    Py_DECREF(row_obj);
+                    return false;
+                }
+                result[col][row] = v;
+            }
+            Py_DECREF(row_obj);
+        }
+        value = result;
+        return true;
+    }
+
+    static handle from_cpp(const glm::dmat4x4& mat, rv_policy /*policy*/, cleanup_list* cleanup) noexcept {
+        double* data = new double[16];
+        for (int row = 0; row < 4; ++row)
+            for (int col = 0; col < 4; ++col) data[row * 4 + col] = mat[col][row];
+        capsule owner(data, [](void* p) noexcept { delete[] static_cast<double*>(p); });
+        ndarray<numpy, double, shape<4, 4>> arr(data, {4, 4}, owner);
+        return type_caster<decltype(arr)>::from_cpp(arr, rv_policy::reference, cleanup);
+    }
+};
+
+}  // namespace nanobind::detail
+
 namespace reflect {
 
 template <>
@@ -271,7 +340,6 @@ static_assert(Structure<rayx::DesignSource>);
 
 }  // namespace reflect
 
-// TODO: dmat4x4
 // TODO: rays struct
 // TODO: LayerCoating
 // TODO: CurvatureType
