@@ -8,6 +8,8 @@ test.ipynb
 *.pyi
 venv/
 .venv/
+venv_docs/
+docs/_build/
 **.so
 __pycache__/
 rayx/_version.py
