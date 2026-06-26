@@ -4,11 +4,6 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.12"
-
-sphinx:
-  configuration: docs/conf.py
-  builder: html
-
-python:
-  install:
-    - requirements: docs/requirements.txt
+  commands:
+    - pip install rayx $(python3 -c "import tomllib; d=tomllib.loads(open('pyproject.toml','rb').read()); print(' '.join(d['project']['optional-dependencies']['docs']))")
+    - python -m sphinx -T -b html -d $READTHEDOCS_OUTPUT/doctrees docs/ $READTHEDOCS_OUTPUT/html
