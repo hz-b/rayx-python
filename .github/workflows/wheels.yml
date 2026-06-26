@@ -24,6 +24,7 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
+          fetch-depth: 0
           fetch-tags: true
 
       # Used to host cibuildwheel
