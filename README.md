@@ -19,6 +19,20 @@ The package can be built in two ways:
 The 1. option supports build cashing and the build result can be used immediatly without any installation steps. See [example](./examples/metrix.ipynb)
 The 2. option builds the package as a wheel. The resulting wheel can be installed in your python environment.
 
+## Developer tools
+
+Set up a local `.venv` with all dependencies:
+
+```bash
+bash tools/bootstrap.sh
+```
+
+Build the documentation locally:
+
+```bash
+bash tools/build_docs.sh --html --open
+```
+
 ### Running tests
 
 To run the tests you need to build the package with cmake.
