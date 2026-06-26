@@ -21,16 +21,8 @@ The 2. option builds the package as a wheel. The resulting wheel can be installe
 
 ### Running tests
 
+To run the tests you need to build the package with cmake.
+
 ```bash
 uv run pytest tests
 ```
-
-## Release
-
-Wheels are built using [cibuildwheel](https://cibuildwheel.readthedocs.io/) inside a custom manylinux container with CUDA support:
-
-```bash
-pipx run cibuildwheel
-```
-
-Built wheels are placed in `wheelhouse/`. See `pyproject.toml` for the build configuration.
