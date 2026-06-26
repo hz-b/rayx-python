@@ -49,16 +49,7 @@ Key keyword arguments:
 | Argument | Default | Description |
 | --- | --- | --- |
 | `sequential` | `False` | If `True`, rays interact with elements in the order they appear in the file |
-| `device_type` | `DeviceType.Cpu` | Compute device; CPU is the only supported option in this Python package |
 | `max_events` | `None` | Maximum number of scattering events per ray |
-| `seed` | `None` | RNG seed; `None` draws a random seed |
-
-For reproducible results, fix the seed before tracing:
-
-```python
-rayx.fix_seed()          # uses the built-in canonical seed
-rays = beamline.trace()
-```
 
 ## 5. Convert rays to a DataFrame
 
@@ -75,21 +66,26 @@ print(df.shape)
 
 ## 6. Filter and analyse
 
-Work with the DataFrame using standard pandas operations. For example, select only rays that were absorbed (i.e. reached the image plane or a detector element):
+The `event_type` column is stored as an unsigned integer — compare against the enum's `.value` attribute:
 
 ```python
 from rayx import EventType
 
-absorbed = df[df["event_type"] == EventType.ABSORBED]
-print(f"{len(absorbed)} rays absorbed out of {len(df)}")
+# Rays blocked by apertures/slits along the beamline
+absorbed = df[df["event_type"] == EventType.ABSORBED.value]
+print(f"{len(absorbed)} rays blocked by apertures")
 ```
 
-Or filter by a specific optical element (using its index in the element list):
+Rays that reached the image plane (the last element in the list) appear with `event_type == EventType.HIT_ELEMENT`:
 
 ```python
-# Rays that hit the second element (index 1)
-on_m1 = df[df["object_id"] == 1]
-print(on_m1[["position_x", "position_y", "position_z"]].describe())
+image_plane_id = len(beamline.elements) - 1
+on_image = df[
+    (df["object_id"] == image_plane_id)
+    & (df["event_type"] == EventType.HIT_ELEMENT.value)
+]
+print(f"{len(on_image)} rays on the image plane")
+print(on_image[["position_x", "position_y", "position_z"]].describe())
 ```
 
 ## Complete example
@@ -103,25 +99,35 @@ beamline = rayx.import_beamline("path/to/your/beamline.rml")
 
 # Inspect what's in it
 for source in beamline.sources:
-    print(source.name, source.type)
-for element in beamline.elements:
-    print(element.name, element.type)
+    print(source.name, source.type, source.energy, "eV")
+for i, element in enumerate(beamline.elements):
+    print(i, element.name, element.type)
 
-# Fix seed for reproducibility and run the trace
-rayx.fix_seed()
+# Run the trace
 rays = beamline.trace()
 
 # Convert to a DataFrame
 df = rayx.rays_to_df(rays)
 print(df.shape)
 
-# Select absorbed rays
-absorbed = df[df["event_type"] == EventType.ABSORBED]
-print(f"{len(absorbed)} rays absorbed out of {len(df)}")
+# Event type breakdown (compare using .value — event_type column is uint32)
+for et in EventType:
+    count = (df["event_type"] == et.value).sum()
+    if count > 0:
+        print(f"{et.name}: {count}")
 
-# Inspect positions of rays on the first optical element (index 0)
-on_first = df[df["object_id"] == 0]
-print(on_first[["position_x", "position_y", "position_z"]].describe())
+# Rays blocked by apertures/slits
+absorbed = df[df["event_type"] == EventType.ABSORBED.value]
+print(f"{len(absorbed)} rays blocked by apertures")
+
+# Rays that reached the image plane (last element)
+image_plane_id = len(beamline.elements) - 1
+on_image = df[
+    (df["object_id"] == image_plane_id)
+    & (df["event_type"] == EventType.HIT_ELEMENT.value)
+]
+print(f"{len(on_image)} rays on the image plane")
+print(on_image[["position_x", "position_y", "position_z"]].describe())
 ```
 
 ---
