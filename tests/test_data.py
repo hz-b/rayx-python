@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "python"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import rayx
 
@@ -27,12 +27,12 @@ def test_rays_to_df_returns_dataframe(df):
 
 def test_rays_to_df_default_columns(df):
     expected_columns = [
-        "path_event_id",
+        "path_id", "path_event_id",
         "position_x", "position_y", "position_z",
         "direction_x", "direction_y", "direction_z",
         "electric_field_x", "electric_field_y", "electric_field_z",
-        "energy", "order",
-        "last_element_id", "source_id",
+        "optical_path_length", "energy", "order",
+        "object_id", "source_id",
         "event_type",
     ]
     assert list(df.columns) == expected_columns

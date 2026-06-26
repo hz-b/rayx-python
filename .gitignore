@@ -10,3 +10,4 @@ venv/
 .venv/
 **.so
 __pycache__/
+rayx/_version.py

@@ -10,7 +10,7 @@ from pathlib import Path
 
 try:
     from . import core
-    from .core import *
+    from core import *
 except ImportError:
     # If the import fails, we might be in a development environment where the module is not built yet
     # We can try to import from the build directory
@@ -25,11 +25,11 @@ except ImportError:
     else:
         raise ImportError("Could not import the RAYX C++ extension module. Make sure it is built and available.")
 
-
+from ._version import *
 
 
 def get_info():
-    """Get information about the RAYX installation"""
+    "Get information about the RAYX installation"
     info = {
         "version": __version__,
         "python_wrapper": True,
@@ -39,8 +39,7 @@ def get_info():
     return info
 
 # From other files
-from .data import rays_to_df
+from .data import *
 
 __name__ = "rayx"
-__version__ = "0.4.3"
 __all__ = ['get_info', 'rays_to_df']

@@ -1,6 +1,6 @@
 [project]
 name = "rayx"
-version = "0.4.6"
+dynamic = ["version"]
 description = "Python bindings for RAYX"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -27,6 +27,11 @@ build-backend = "scikit_build_core.build"
 [tool.scikit-build]
 wheel.packages = ["python/rayx"]
 cmake.build-type = "Release"
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+sdist.include = ["rayx/_version.py"]
+
+[tool.setuptools_scm] # Section required
+write_to = "rayx/_version.py"
 
 [tool.cibuildwheel]
 archs = ["x86_64"]
@@ -40,4 +45,7 @@ pythonpath = ["python"]
 package = false
 
 [dependency-groups]
-dev = ["twine>=6.2.0"]
+dev = [
+    "setuptools-scm>=10.2.0",
+    "twine>=6.2.0",
+]
