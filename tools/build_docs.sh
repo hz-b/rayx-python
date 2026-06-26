@@ -49,7 +49,7 @@ fi
 echo "============================================================"
 echo "Installing docs dependencies into ${DOCS_VENV_DIR}"
 echo "============================================================"
-DOCS_DEPS="$("${DOCS_VENV_DIR}/bin/python" -c "import tomllib; d=tomllib.loads(open('${PROJECT_ROOT}/pyproject.toml','rb').read()); print(' '.join(d['project']['optional-dependencies']['docs']))")"
+DOCS_DEPS="$("${DOCS_VENV_DIR}/bin/python" -c "import tomllib; d=tomllib.load(open('${PROJECT_ROOT}/pyproject.toml','rb')); print(' '.join(d['project']['optional-dependencies']['docs']))")"
 "${UV_BIN}" pip install --python "${DOCS_VENV_DIR}/bin/python" rayx ${DOCS_DEPS}
 
 PYTHON_BIN="${DOCS_VENV_DIR}/bin/python"
