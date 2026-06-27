@@ -50,7 +50,7 @@ echo "============================================================"
 echo "Installing docs dependencies into ${DOCS_VENV_DIR}"
 echo "============================================================"
 DOCS_DEPS="$("${DOCS_VENV_DIR}/bin/python" -c "import tomllib; d=tomllib.load(open('${PROJECT_ROOT}/pyproject.toml','rb')); print(' '.join(d['project']['optional-dependencies']['docs']))")"
-"${UV_BIN}" pip install --python "${DOCS_VENV_DIR}/bin/python" rayx ${DOCS_DEPS}
+"${UV_BIN}" pip install --python "${DOCS_VENV_DIR}/bin/python" ${DOCS_DEPS}
 
 PYTHON_BIN="${DOCS_VENV_DIR}/bin/python"
 HTML_BUILD_DIR="${DOCS_DIR}/_build/html"
