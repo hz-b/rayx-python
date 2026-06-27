@@ -133,5 +133,5 @@ print(on_image[["position_x", "position_y", "position_z"]].describe())
 ---
 
 :::{seealso}
-For a higher-level interface that integrates rayx-python into a full simulation and optimisation workflow — including energy-angle sweeps, batch runs, and parameter studies — see [raypyng](https://raypyng.readthedocs.io/en/latest/).
+For a higher-level interface that integrates rayx-python into a full simulation and optimisation workflow see [raypyng](https://raypyng.readthedocs.io/en/latest/).
 :::
