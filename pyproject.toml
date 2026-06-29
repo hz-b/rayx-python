@@ -19,6 +19,11 @@ maintainers = [
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "matplotlib>=3.5", "ipython"]
 test = ["pytest>=7.0", "pytest-cov"]
+docs = [
+    "sphinx>=7.0",
+    "myst-parser>=2.0",
+    "furo>=2024.8.6",
+]
 
 [build-system]
 requires = ["scikit-build-core", "nanobind"]
