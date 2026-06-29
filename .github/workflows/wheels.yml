@@ -3,9 +3,11 @@ name: Build
 on: 
   pull_request:
     branches:
+      - develop
       - main
   push:
     branches:
+      - develop
       - main
     tags:
       - 'v*.*.*'
@@ -28,8 +30,8 @@ jobs:
       # Used to host cibuildwheel
       - uses: actions/setup-python@v6
 
-      - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel==4.0.0rc1
+      - name: Install build tooling
+        run: python -m pip install cibuildwheel==4.0.0rc1 twine
 
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
@@ -39,7 +41,7 @@ jobs:
         #   ...
       - name: Upload to PyPI
         run: python -m twine upload --repository pypi wheelhouse/*.whl
-        if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
 
       - uses: actions/upload-artifact@v6
         with:

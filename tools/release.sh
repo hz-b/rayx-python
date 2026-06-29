@@ -9,8 +9,8 @@ cd "${PROJECT_ROOT}"
 
 CHANGELOG_FILE="CHANGELOG.md"
 STATE_FILE="$(git rev-parse --git-path release-state)"
-NOTES_FILE="$(git rev-parse --git-path release-notes.md)"
-STEPS=("bump" "commit" "tag" "push" "gh-release" "pr" "pypi")
+RELEASE_BRANCH="develop"
+STEPS=("bump" "commit" "tag" "push" "pr")
 
 SELECTED_VERSION=""
 SELECTED_TAG=""
@@ -27,9 +27,7 @@ Steps:
   commit      Commit release changelog changes
   tag         Create git tag v<version>
   push        Push commit and tag to origin
-  gh-release  Create GitHub release from CHANGELOG.md notes
   pr          Create GitHub PR to main from current branch
-  pypi        Show PyPI publishing reminder
 EOF
 }
 
@@ -56,6 +54,27 @@ confirm() {
 require_command() {
     if ! command -v "$1" >/dev/null 2>&1; then
         error "Required command not found: $1"
+    fi
+}
+
+current_branch() {
+    git branch --show-current
+}
+
+require_release_branch() {
+    local branch
+
+    branch="$(current_branch)"
+    [[ -n "${branch}" ]] || error "Could not determine the current branch."
+
+    if [[ "${branch}" != "${RELEASE_BRANCH}" ]]; then
+        error "Release workflow must be run from '${RELEASE_BRANCH}', not '${branch}'."
+    fi
+}
+
+require_clean_worktree() {
+    if [[ -n "$(git status --short)" ]]; then
+        error "Working tree is not clean. Commit or stash changes before starting a release."
     fi
 }
 
@@ -149,7 +168,6 @@ save_state() {
         printf 'SELECTED_VERSION=%q\n' "${SELECTED_VERSION}"
         printf 'SELECTED_TAG=%q\n' "${SELECTED_TAG}"
         printf 'RELEASE_DATE=%q\n' "${RELEASE_DATE}"
-        printf 'NOTES_FILE=%q\n' "${NOTES_FILE}"
     } > "${tmp_file}"
     mv "${tmp_file}" "${STATE_FILE}"
 }
@@ -273,21 +291,6 @@ section_has_release_entries() {
     '
 }
 
-write_release_notes() {
-    local heading="## [${SELECTED_VERSION}] - ${RELEASE_DATE}"
-    local tmp_file
-
-    tmp_file="$(create_temp_file)"
-    extract_section_body "${heading}" | sed '/^[[:space:]]*$/d' > "${tmp_file}"
-
-    if [[ ! -s "${tmp_file}" ]]; then
-        rm -f "${tmp_file}"
-        error "Could not extract release notes for ${SELECTED_TAG} from ${CHANGELOG_FILE}"
-    fi
-
-    mv "${tmp_file}" "${NOTES_FILE}"
-}
-
 update_changelog_for_release() {
     local release_heading="## [${SELECTED_VERSION}] - ${RELEASE_DATE}"
     local unreleased_body tmp_file
@@ -301,7 +304,6 @@ update_changelog_for_release() {
             error "CHANGELOG.md already contains ${release_heading}, but [Unreleased] still has entries."
         fi
 
-        write_release_notes
         save_state
         return
     fi
@@ -343,7 +345,6 @@ update_changelog_for_release() {
     ' "${CHANGELOG_FILE}" > "${tmp_file}"
     mv "${tmp_file}" "${CHANGELOG_FILE}"
 
-    write_release_notes
     save_state
 }
 
@@ -367,16 +368,20 @@ gh_cli_instructions() {
 
 run_bump_step() {
     print_header "Preparing release changelog"
+    require_release_branch
+    require_clean_worktree
     choose_version
     update_changelog_for_release
 
     echo
     echo "Prepared ${CHANGELOG_FILE} for ${SELECTED_TAG}."
+    echo "Package version will be derived from git tag ${SELECTED_TAG} via setuptools_scm."
     git status --short
 }
 
 run_commit_step() {
     print_header "Committing release changes"
+    require_release_branch
     require_state
 
     if ! confirm "Create git commit for release changes?"; then
@@ -397,6 +402,7 @@ run_commit_step() {
 
 run_tag_step() {
     print_header "Creating git tag"
+    require_release_branch
     require_state
 
     if ! confirm "Create git tag ${SELECTED_TAG}?"; then
@@ -418,9 +424,8 @@ run_tag_step() {
 }
 
 run_push_step() {
-    local current_branch
-
     print_header "Pushing release"
+    require_release_branch
     require_state
 
     if ! confirm "Push commit and tag to origin?"; then
@@ -428,10 +433,7 @@ run_push_step() {
         return
     fi
 
-    current_branch="$(git branch --show-current)"
-    [[ -n "${current_branch}" ]] || error "Could not determine the current branch."
-
-    git push origin "${current_branch}"
+    git push origin "${RELEASE_BRANCH}"
 
     if remote_tag_exists; then
         echo "Git tag ${SELECTED_TAG} already exists on origin."
@@ -442,39 +444,9 @@ run_push_step() {
     echo "Pushed branch and tag."
 }
 
-run_gh_release_step() {
-    print_header "Checking GitHub CLI"
-    require_state
-
-    if ! command -v gh >/dev/null 2>&1; then
-        echo
-        gh_cli_instructions
-        return
-    fi
-
-    if ! confirm "Create GitHub release ${SELECTED_TAG}?"; then
-        echo "Skipping GitHub release creation."
-        return
-    fi
-
-    if gh release view "${SELECTED_TAG}" >/dev/null 2>&1; then
-        echo "GitHub release ${SELECTED_TAG} already exists."
-        return
-    fi
-
-    write_release_notes
-
-    gh release create \
-        "${SELECTED_TAG}" \
-        --title "${SELECTED_TAG}" \
-        --notes-file "${NOTES_FILE}"
-}
-
 find_existing_pr_number() {
-    local current_branch="$1"
-
     gh pr list \
-        --head "${current_branch}" \
+        --head "${RELEASE_BRANCH}" \
         --base main \
         --json number \
         --limit 1 \
@@ -482,9 +454,10 @@ find_existing_pr_number() {
 }
 
 run_pr_step() {
-    local current_branch pr_number pr_title pr_body merge_choice
+    local pr_number pr_title pr_body
 
     print_header "Creating GitHub PR"
+    require_release_branch
     require_state
 
     if ! command -v gh >/dev/null 2>&1; then
@@ -493,76 +466,36 @@ run_pr_step() {
         return
     fi
 
-    current_branch="$(git branch --show-current)"
-    if [[ "${current_branch}" == "main" ]]; then
-        echo "Current branch is main; skipping PR creation."
-        return
-    fi
-
-    if ! confirm "Create GitHub PR to main from ${current_branch}?"; then
+    if ! confirm "Create GitHub PR to main from ${RELEASE_BRANCH}?"; then
         echo "Skipping PR creation."
         return
     fi
 
-    pr_number="$(find_existing_pr_number "${current_branch}")"
+    pr_number="$(find_existing_pr_number)"
     if [[ -z "${pr_number}" ]]; then
-        pr_title="Release ${SELECTED_TAG}: ${current_branch} -> main"
+        pr_title="Release ${SELECTED_TAG}: ${RELEASE_BRANCH} -> main"
         pr_body=$(
             cat <<EOF
 ## Release promotion
 
-- Promote release changes from \`${current_branch}\` to \`main\`.
+- Promote release changes from \`${RELEASE_BRANCH}\` to \`main\`.
 - Version: \`${SELECTED_TAG}\`
+- PyPI publication is triggered by the \`${SELECTED_TAG}\` tag push.
 EOF
         )
 
         gh pr create \
             --base main \
-            --head "${current_branch}" \
+            --head "${RELEASE_BRANCH}" \
             --title "${pr_title}" \
             --body "${pr_body}"
 
-        pr_number="$(find_existing_pr_number "${current_branch}")"
+        pr_number="$(find_existing_pr_number)"
     else
-        echo "GitHub PR #${pr_number} already exists for ${current_branch} -> main."
+        echo "GitHub PR #${pr_number} already exists for ${RELEASE_BRANCH} -> main."
     fi
 
     [[ -n "${pr_number}" ]] || return
-
-    echo
-    echo "Select PR merge mode:"
-    echo "1) do not merge automatically"
-    echo "2) merge now (if allowed)"
-    echo "3) enable auto-merge when checks pass"
-    read -rp "Choice [1-3]: " merge_choice
-
-    case "${merge_choice}" in
-        2)
-            if [[ "${current_branch}" == "develop" ]]; then
-                gh pr merge "${pr_number}" --merge
-            else
-                gh pr merge "${pr_number}" --merge --delete-branch
-            fi
-            ;;
-        3)
-            if [[ "${current_branch}" == "develop" ]]; then
-                gh pr merge "${pr_number}" --auto --merge
-            else
-                gh pr merge "${pr_number}" --auto --merge --delete-branch
-            fi
-            ;;
-        *)
-            echo "Skipping automatic PR merge."
-            ;;
-    esac
-}
-
-run_pypi_step() {
-    print_header "PyPI publishing"
-
-    if confirm "Upload package to PyPI?"; then
-        echo "Note: PyPI publish script not yet created. Run publish manually or add tools/publish_pypi.sh."
-    fi
 }
 
 main() {
@@ -589,14 +522,8 @@ main() {
             push)
                 run_push_step
                 ;;
-            gh-release)
-                run_gh_release_step
-                ;;
             pr)
                 run_pr_step
-                ;;
-            pypi)
-                run_pypi_step
                 ;;
         esac
     done
