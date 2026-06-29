@@ -12,4 +12,5 @@ For a higher-level interface that integrates rayx-python into a full simulation 
 
 installation/index
 tutorials/index
+api/index
 ```
