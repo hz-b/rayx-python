@@ -8,7 +8,7 @@ from pathlib import Path
 import rayx
 from rayx import EventType
 
-RML_FILE = Path(__file__).parent.parent / "tests" / "res" / "test.rml"
+RML_FILE = "METRIX_U41_G1_H1_318eV_PS_MLearn_v114.rml"
 
 # --- 1. Import and verify ---
 info = rayx.get_info()
