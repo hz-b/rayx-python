@@ -19,7 +19,23 @@ which nvcc
 nvcc --version
 ```
 
-## 3. Install NVIDIA Driver and CUDA Toolkit
+## 3. Add CUDA to PATH
+
+If the toolkit is installed but `nvcc` is still not found, its bin directory is not in your `PATH`.
+Add it for the current shell:
+
+```bash
+export PATH=/usr/local/cuda/bin:$PATH
+```
+
+To make it permanent, add that line to your `~/.bashrc` (or `~/.zshrc`) and reload:
+
+```bash
+echo 'export PATH=/usr/local/cuda/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+```
+
+## 4. Install NVIDIA Driver and CUDA Toolkit
 Both the NVIDIA driver and the CUDA toolkit can be installed from the official NVIDIA website:
 https://developer.nvidia.com/cuda-downloads
 

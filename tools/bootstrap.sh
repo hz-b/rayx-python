@@ -24,6 +24,7 @@ venv_matches_python_spec() {
 
 have_nvidia_smi=0
 have_nvcc=0
+nvcc_path_hint=0
 
 if command -v nvidia-smi >/dev/null 2>&1; then
   have_nvidia_smi=1
@@ -31,6 +32,8 @@ fi
 
 if command -v nvcc >/dev/null 2>&1; then
   have_nvcc=1
+elif [ -x "/usr/local/cuda/bin/nvcc" ]; then
+  nvcc_path_hint=1
 fi
 
 if [ "$have_nvidia_smi" -ne 1 ] || [ "$have_nvcc" -ne 1 ]; then
@@ -41,7 +44,12 @@ if [ "$have_nvidia_smi" -ne 1 ] || [ "$have_nvcc" -ne 1 ]; then
   fi
 
   if [ "$have_nvcc" -ne 1 ]; then
-    echo "  - CUDA toolkit not found: install the CUDA toolkit so nvcc works." >&2
+    if [ "$nvcc_path_hint" -eq 1 ]; then
+      echo "  - CUDA toolkit found at /usr/local/cuda/bin but not in PATH." >&2
+      echo "    See install_nvidia.md for how to add it to your PATH." >&2
+    else
+      echo "  - CUDA toolkit not found: install the CUDA toolkit so nvcc works." >&2
+    fi
   fi
 
   echo "See: install_nvidia.md" >&2
