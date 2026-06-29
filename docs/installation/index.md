@@ -11,15 +11,3 @@
 ```bash
 pip install rayx
 ```
-
-The following dependencies are installed automatically:
-
-| Package | Minimum version |
-| --- | --- |
-| `numpy` | 2.0 |
-| `pandas` | 2.3 |
-| `matplotlib` | 3.9 |
-
-## Note on source builds
-
-The package includes a compiled C++ extension and is distributed as a pre-built wheel. Building from source requires CMake, a C++ compiler, and the RAYX C++ dependencies; it is not supported via a plain `pip install` from source.
