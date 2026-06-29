@@ -22,6 +22,35 @@ venv_matches_python_spec() {
   [ "$version" = "$PYTHON_SPEC" ]
 }
 
+have_nvidia_smi=0
+have_nvcc=0
+
+if command -v nvidia-smi >/dev/null 2>&1; then
+  have_nvidia_smi=1
+fi
+
+if command -v nvcc >/dev/null 2>&1; then
+  have_nvcc=1
+fi
+
+if [ "$have_nvidia_smi" -ne 1 ] || [ "$have_nvcc" -ne 1 ]; then
+  echo "Error: CUDA prerequisites are missing." >&2
+
+  if [ "$have_nvidia_smi" -ne 1 ]; then
+    echo "  - NVIDIA driver not found: install the driver so nvidia-smi works." >&2
+  fi
+
+  if [ "$have_nvcc" -ne 1 ]; then
+    echo "  - CUDA toolkit not found: install the CUDA toolkit so nvcc works." >&2
+  fi
+
+  echo "See: install_nvidia.md" >&2
+  exit 1
+fi
+
+echo "Updating git submodules"
+git submodule update --init --recursive
+
 if [ -d ".venv" ]; then
   if venv_matches_python_spec; then
     echo "Using existing virtual environment at .venv (Python ${PYTHON_SPEC})"
