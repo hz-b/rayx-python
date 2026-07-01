@@ -11,3 +11,4 @@ venv/
 **.so
 __pycache__/
 rayx/_version.py
+docs/_build
