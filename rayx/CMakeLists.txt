@@ -1,8 +1,11 @@
-project(rayxpy LANGUAGES CXX CUDA)
+project(rayxpy LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_STANDARD 20)
-set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+if(alpaka_ACC_GPU_CUDA_ENABLE)
+    enable_language(CUDA)
+    set(CMAKE_CUDA_STANDARD 20)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+endif()
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
 if (CMAKE_VERSION VERSION_LESS 3.18)
@@ -24,8 +27,7 @@ nanobind_add_stub(
 )
 target_link_libraries(core PRIVATE rayx-core)
 target_include_directories(core PRIVATE 
-    $<TARGET_PROPERTY:rayx-core,INTERFACE_INCLUDE_DIRECTORIES> 
-    ${CUDA_TOOLKIT_INCLUDE})
+    $<TARGET_PROPERTY:rayx-core,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_custom_command(
   TARGET core 
