@@ -52,6 +52,10 @@ uv pip install -e .
 
 A `tools/bootstrap.sh` helper script is also available, wrapping the steps above with CUDA on/off prompting.
 
+### Building the docs
+
+Use `bash tools/build_docs.sh --html --open` to build and open the documentation. The script creates a dedicated docs virtual environment, installs the docs dependencies, and writes the HTML output to `docs/_build/html/`.
+
 ### Running tests
 
 Tests require a CMake build:
