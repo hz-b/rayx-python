@@ -9,12 +9,17 @@ helpers need explicit declarations, which is what this test enforces.
 The native API is typed separately by the auto-generated `_core.pyi` (no upkeep).
 """
 import ast
+import shutil
+import subprocess
 import types
 from pathlib import Path
 
 import rayx
 
 STUB = Path(rayx.__file__).with_name("__init__.pyi")
+# ABI3 extensions are named ``_core.abi3.so`` but their companion stub is
+# always ``_core.pyi``.
+CORE_STUB = Path(rayx._core.__file__).with_name("_core.pyi")
 
 
 def _package_defined_helpers():
@@ -49,6 +54,20 @@ def _stub_declared_names():
 
 def test_stub_file_is_shipped():
     assert STUB.exists(), f"expected public stub at {STUB}"
+
+
+def test_generated_native_stub_is_valid_python():
+    """The generated native stub is shipped alongside the extension."""
+    assert CORE_STUB.exists(), f"expected generated native stub at {CORE_STUB}"
+    ast.parse(CORE_STUB.read_text())
+
+
+def test_generated_native_stub_type_checks():
+    """Type-check the installed wheel's native API when pyright is available."""
+    pyright = shutil.which("pyright")
+    if pyright is None:
+        return
+    subprocess.run([pyright, str(CORE_STUB.parent)], check=True)
 
 
 def test_stub_declares_every_public_helper():

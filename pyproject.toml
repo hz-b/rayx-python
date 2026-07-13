@@ -43,8 +43,10 @@ write_to = "src/rayx/_version.py"
 [tool.cibuildwheel]
 archs = ["x86_64"]
 build = ["*manylinux*"]
+# Free-threaded CPython does not support the stable ABI used by this wheel.
+skip = ["cp*t-*"]
 manylinux-x86_64-image = "gitea.valentinstoecker.de/vls/manylinux_cuda"
-test-requires = ["pytest"]
+test-requires = ["pytest", "pyright"]
 test-command = "cd /tmp && python -m pytest -q {project}/tests"
 
 [tool.cibuildwheel.linux]

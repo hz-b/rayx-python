@@ -30,6 +30,18 @@ def test_native_api_exposed_at_top_level():
     assert not hasattr(rayx, "core")
 
 
+def test_opaque_crystal_type_uses_an_int():
+    crystal = Path(__file__).parents[1] / "extern/rayx/Intern/rayx-core/tests/input/crystal.rml"
+    beamline = rayx.import_beamline(str(crystal))
+    element = beamline.elements[0]
+    assert isinstance(element.crystalType, int)
+    element.crystalType = element.crystalType
+
+
+def test_central_beamstop_uses_a_valid_python_member_name():
+    assert rayx.CentralBeamstop.NONE.value == 0
+
+
 def test_star_export_advertises_native_api_and_helpers():
     ns = {}
     exec("from rayx import *", ns)
