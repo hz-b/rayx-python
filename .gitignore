@@ -5,9 +5,12 @@ test.py
 wheelhouse
 test.ipynb
 *.whl
+# Ignore generated stubs (e.g. the nanobind-generated _core.pyi), but keep the
+# hand-written public stub, which is a tracked source file and ships in the wheel.
 *.pyi
+!src/rayx/__init__.pyi
 venv/
 .venv/
 **.so
 __pycache__/
-rayx/_version.py
+src/rayx/_version.py
