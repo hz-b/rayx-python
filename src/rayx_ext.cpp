@@ -355,7 +355,7 @@ py::ndarray<py::numpy, T, py::ndim<1>> to_numpy(std::vector<T>& v) {
     return py::ndarray<py::numpy, T, py::ndim<1>>(v.data(), {v.size()});
 }
 
-NB_MODULE(core, m) {
+NB_MODULE(_core, m) {
     std::filesystem::path module_path = getModulePath(m);
     rayx::ResourceHandler::getInstance().addLookUpPath(module_path);
 

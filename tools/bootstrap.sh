@@ -129,10 +129,13 @@ else
   uv venv --python "${PYTHON_SPEC}" .venv
 fi
 
+echo "Synchronizing locked development dependencies"
+uv sync --locked
+
 echo "Installing rayx in editable mode (-e)"
 echo "Note: this triggers the CMake/scikit-build-core build — cmake and a C++ compiler must be available."
 CMAKE_ARGS="${CMAKE_ARGS:+${CMAKE_ARGS} }${BOOTSTRAP_CMAKE_ARGS}" \
-  uv pip install --python .venv/bin/python -e .
+  uv pip install --python .venv/bin/python --no-build-isolation -e .
 
 echo "Bootstrap complete."
 echo "Activate with: source .venv/bin/activate"

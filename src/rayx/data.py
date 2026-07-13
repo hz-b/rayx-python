@@ -2,9 +2,9 @@
 RAY-X Python bindings
 """
 import pandas as pd
-from . import core
+from . import _core
 
-def rays_to_df(rays: core.Rays, columns: list | None = None) -> pd.DataFrame:
+def rays_to_df(rays: _core.Rays, columns: list | None = None) -> pd.DataFrame:
     if columns is None:
         columns = [
             "path_id",

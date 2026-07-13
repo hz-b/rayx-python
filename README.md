@@ -8,7 +8,7 @@ Python bindings for [RAYX](https://github.com/hz-b/rayx), the ray tracing engine
 pip install rayx
 ```
 
-> **Note:** The package includes a compiled C++ extension and is distributed as a pre-built wheel. Source builds are not supported via pip.
+> **Note:** Standard installations use a pre-built wheel because the package includes a compiled C++ extension. The supported development source-build workflow is described below.
 
 ## Requirements
 
@@ -30,32 +30,42 @@ Make it permanent by adding that line to `~/.bashrc` (or `~/.zshrc`) and reloadi
 
 ## Development
 
-The package can be built in two ways:
-
-1. **CMake** — supports build caching; the result is usable immediately with no install step. See the [example notebook](./examples/metrix.ipynb).
-2. **`uv build`** — builds the package as a wheel, which can then be installed into any Python environment.
+Use an editable install for development; it builds the native extension and makes
+the Python wrapper importable from its normal package location. `uv build` creates
+a distributable wheel.
 
 ```bash
 git submodule update --init --recursive
-
-# Option 1: build in place with CMake (uv creates/manages the environment)
-uv run cmake -S . -B build
-uv run cmake --build build -j
-
-# Option 2: editable install via uv
-uv pip install -e .
+uv sync --locked
+uv pip install --no-build-isolation -e .
 ```
 
-`uv run` puts the managed environment's Python first on `PATH`, so CMake's `find_package(Python)` resolves the right interpreter without pinning it manually.
+Re-run the editable-install command after changing the native bindings. The
+persistent `build/<wheel-tag>` directory and non-isolated development toolchain
+retain CMake's build cache, so Ninja recompiles only affected targets in parallel.
 
-`uv pip install -e .` only re-links the Python wrapper files. It does **not** rebuild the compiled bindings — if you change `rayx-core` or the nanobind glue in `rayxpy`, rerun the CMake commands (Option 1) to recompile, or the install will keep serving the stale extension.
+Python-only changes are available to the next Python process. After changing
+C++ or nanobind code, re-run the editable-install command above, then restart
+the Python process or test run; extension modules cannot be safely replaced in
+an already-running interpreter.
+
+After the editable install has configured the build directory, `cmake --build
+build/<wheel-tag> -j` remains available for a compile-only check. Re-run the
+editable-install command to also copy the rebuilt extension into the active Python
+environment.
 
 A `tools/bootstrap.sh` helper script is also available, wrapping the steps above with CUDA on/off prompting.
 
 ### Running tests
 
-Tests require a CMake build:
+Tests require the editable install:
 
 ```bash
 uv run pytest tests
 ```
+
+## Releases
+
+Release artifacts are built, tested, and published only by the wheel CI workflow.
+It installs every produced wheel outside the checkout and runs the full test suite
+before publication; do not publish a workstation-built wheel.
