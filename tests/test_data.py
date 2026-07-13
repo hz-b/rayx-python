@@ -1,10 +1,7 @@
 # tests/test_data.py
-import sys
 from pathlib import Path
 import pytest
 import pandas as pd
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import rayx
 
