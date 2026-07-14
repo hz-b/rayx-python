@@ -8,7 +8,6 @@ dependencies = [
     "matplotlib>=3.9.4",
     "numpy >= 2.0.0",
     "pandas>=2.3.3",
-    "pytest>=8.4.2",
 ]
 requires-python = ">=3.12"
 authors = [{ name = "RAYX team", email = "rayx-support@helmholtz-berlin.de" }]
@@ -21,31 +20,48 @@ dev = ["pytest>=7.0", "matplotlib>=3.5", "ipython"]
 test = ["pytest>=7.0", "pytest-cov"]
 
 [build-system]
-requires = ["scikit-build-core", "nanobind"]
+requires = ["scikit-build-core>=1.0", "nanobind>=2.13", "setuptools-scm>=10.2"]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
-wheel.packages = ["python/rayx"]
+wheel.packages = ["src/rayx"]
+# Keep CMake artifacts for fast local and editable rebuilds. The wheel tag
+# prevents incompatible Python/ABI builds from sharing a cache.
+build-dir = "build/{wheel_tag}"
 cmake.build-type = "Release"
-metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
-sdist.include = ["rayx/_version.py"]
+sdist.include = ["src/rayx/_version.py"]
+# Tag wheels as cp312-abi3 to match the STABLE_ABI extension (see CMakeLists.txt):
+# one wheel serves CPython 3.12+.
+wheel.py-api = "cp312"
+
+[[tool.dynamic-metadata]]
+provider = "scikit_build_core.metadata.setuptools_scm"
 
 [tool.setuptools_scm] # Section required
-write_to = "rayx/_version.py"
+write_to = "src/rayx/_version.py"
 
 [tool.cibuildwheel]
 archs = ["x86_64"]
 build = ["*manylinux*"]
+# Free-threaded CPython does not support the stable ABI used by this wheel.
+skip = ["cp*t-*"]
 manylinux-x86_64-image = "gitea.valentinstoecker.de/vls/manylinux_cuda"
+test-requires = ["pytest", "pyright"]
+test-command = "cd /tmp && python -m pytest -q {project}/tests"
 
 [tool.cibuildwheel.linux]
 environment = { SETUPTOOLS_SCM_OVERRIDES_FOR_RAYX = "{ local_scheme = 'no-local-version' }" }
-
-[tool.pytest.ini_options]
-pythonpath = ["python"]
 
 [tool.uv]
 package = false
 
 [dependency-groups]
-dev = ["setuptools-scm>=10.2.0", "twine>=6.2.0"]
+dev = [
+    "cmake>=3.26",
+    "nanobind>=2.13.0",
+    "ninja>=1.13.0",
+    "pytest>=9.0.2",
+    "scikit-build-core>=1.0",
+    "setuptools-scm>=10.2.0",
+    "twine>=6.2.0",
+]

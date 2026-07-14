@@ -271,7 +271,7 @@ struct info<rayx::DesignElement> {
         prop_info{&rayx::DesignElement::getImageType, &rayx::DesignElement::setImageType, "imageType"},
         prop_info{&rayx::DesignElement::getCurvatureType, &rayx::DesignElement::setCurvatureType, "curvatureType"},
         prop_info{&rayx::DesignElement::getBehaviourType, &rayx::DesignElement::setBehaviourType, "behaviourType"},
-        prop_info{&rayx::DesignElement::getCrystalType, &rayx::DesignElement::setCrystalType, "crystalType"},
+        opaque_int_prop_info{&rayx::DesignElement::getCrystalType, &rayx::DesignElement::setCrystalType, "crystalType"},
         prop_info{&rayx::DesignElement::getCrystalMaterial, &rayx::DesignElement::setCrystalMaterial, "crystalMaterial"},
         prop_info{&rayx::DesignElement::getOffsetAngle, &rayx::DesignElement::setOffsetAngle, "offsetAngle"},
         prop_info{&rayx::DesignElement::getStructureFactorReF0, &rayx::DesignElement::setStructureFactorReF0, "structureFactorReF0"},
@@ -355,7 +355,7 @@ py::ndarray<py::numpy, T, py::ndim<1>> to_numpy(std::vector<T>& v) {
     return py::ndarray<py::numpy, T, py::ndim<1>>(v.data(), {v.size()});
 }
 
-NB_MODULE(core, m) {
+NB_MODULE(_core, m) {
     std::filesystem::path module_path = getModulePath(m);
     rayx::ResourceHandler::getInstance().addLookUpPath(module_path);
 
@@ -405,7 +405,7 @@ NB_MODULE(core, m) {
         .value("Elliptical", rayx::CutoutType::Elliptical);
 
     py::enum_<rayx::CentralBeamstop>(m, "CentralBeamstop")
-        .value("None", rayx::CentralBeamstop::None)
+        .value("NONE", rayx::CentralBeamstop::None)
         .value("Rectangle", rayx::CentralBeamstop::Rectangle)
         .value("Elliptical", rayx::CentralBeamstop::Elliptical);
 

@@ -5,13 +5,10 @@ See the caster in main.cpp for the row/col convention and the rayx-core caveat:
 elements only persist the 3x3 rotation block, so these tests assert the 3x3 block
 for elements and the full 4x4 for sources.
 """
-import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import rayx
 

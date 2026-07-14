@@ -49,6 +49,18 @@ struct prop_info {
     const char* name;
 };
 
+// A property backed by an enum that rayx-core intentionally does not expose as
+// a Python enum. Its public Python representation is the enum's integer value.
+template <typename S, typename E>
+struct opaque_int_prop_info {
+    using StructType = S;
+    using MemberType = E;
+
+    E (S::*getter)() const;
+    void (S::*setter)(E);
+    const char* name;
+};
+
 template <typename T>
 struct info;
 
@@ -141,6 +153,12 @@ void bind(py::class_<S>& cls, const prop_info<S, M>& prop) {
         [prop](S& self, M m) { (self.*(prop.setter))(m); });
 }
 
+template <typename S, typename E>
+void bind(py::class_<S>& cls, const opaque_int_prop_info<S, E>& prop) {
+    cls.def_prop_rw(prop.name, [prop](S& self) { return static_cast<int>((self.*(prop.getter))()); },
+                    [prop](S& self, int value) { (self.*(prop.setter))(static_cast<E>(value)); });
+}
+
 template <typename S, typename M>
 void bind_ref(py::class_<Ref<S>>& cls, const field_info<S, M>& field) {
     cls.def_prop_rw(
@@ -219,6 +237,20 @@ void bind_ref(py::class_<Ref<S>>& cls, const prop_info<S, M>& prop) {
             (s.*(prop.setter))(m);
             self.set(s);
         });
+}
+
+template <typename S, typename E>
+void bind_ref(py::class_<Ref<S>>& cls, const opaque_int_prop_info<S, E>& prop) {
+    cls.def_prop_rw(prop.name,
+                    [prop](Ref<S>& self) {
+                        S value = self.get();
+                        return static_cast<int>((value.*(prop.getter))());
+                    },
+                    [prop](Ref<S>& self, int value) {
+                        S object = self.get();
+                        (object.*(prop.setter))(static_cast<E>(value));
+                        self.set(object);
+                    });
 }
 
 // de.cutout.width = 2.0
